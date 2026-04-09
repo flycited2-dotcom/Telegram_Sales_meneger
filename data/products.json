@@ -1,0 +1,214 @@
+{
+  "products": [
+    {
+      "id": "LAPTOP-001",
+      "name": "Ноутбук Dell Inspiron 15 3511",
+      "description": "Intel Core i5-1135G7, 8 ГБ RAM, 256 ГБ SSD, 15.6\" FHD IPS. Идеален для офиса и учёбы.",
+      "price": 62000,
+      "stock": 8,
+      "unit": "шт",
+      "category": "Ноутбуки",
+      "supplier_sku": "DELL-INS3511-I5-8-256",
+      "discounts": {
+        "3+": 3,
+        "10+": 7
+      }
+    },
+    {
+      "id": "LAPTOP-002",
+      "name": "Ноутбук HP Pavilion 15",
+      "description": "AMD Ryzen 5 5500U, 16 ГБ RAM, 512 ГБ SSD, 15.6\" FHD. Мощный и тонкий.",
+      "price": 74000,
+      "stock": 5,
+      "unit": "шт",
+      "category": "Ноутбуки",
+      "supplier_sku": "HP-PAV15-R5-16-512",
+      "discounts": {
+        "3+": 3,
+        "10+": 8
+      }
+    },
+    {
+      "id": "LAPTOP-003",
+      "name": "Ноутбук Lenovo IdeaPad 3",
+      "description": "Intel Core i3-1215U, 8 ГБ RAM, 256 ГБ SSD, 15.6\" HD. Бюджетный вариант.",
+      "price": 42000,
+      "stock": 12,
+      "unit": "шт",
+      "category": "Ноутбуки",
+      "supplier_sku": "LEN-IP3-I3-8-256",
+      "discounts": {
+        "5+": 5,
+        "15+": 10
+      }
+    },
+    {
+      "id": "MONITOR-001",
+      "name": "Монитор LG 24MP400-B (24\")",
+      "description": "IPS, 1920×1080, 75 Гц, HDMI + VGA. Антибликовое покрытие.",
+      "price": 18500,
+      "stock": 15,
+      "unit": "шт",
+      "category": "Мониторы",
+      "supplier_sku": "LG-24MP400-B",
+      "discounts": {
+        "5+": 4,
+        "20+": 9
+      }
+    },
+    {
+      "id": "MONITOR-002",
+      "name": "Монитор Samsung 27\" Curved",
+      "description": "VA, 1920×1080, 144 Гц, 1 мс. Игровой изогнутый монитор.",
+      "price": 29900,
+      "stock": 6,
+      "unit": "шт",
+      "category": "Мониторы",
+      "supplier_sku": "SAM-C27F390",
+      "discounts": {
+        "3+": 5,
+        "10+": 10
+      }
+    },
+    {
+      "id": "KEYBOARD-001",
+      "name": "Клавиатура Logitech MK470 (беспроводная)",
+      "description": "Тихие клавиши, ультратонкий дизайн, USB-приёмник. В комплекте мышь.",
+      "price": 5200,
+      "stock": 30,
+      "unit": "шт",
+      "category": "Периферия",
+      "supplier_sku": "LOG-MK470-BLK",
+      "discounts": {
+        "10+": 5,
+        "50+": 12
+      }
+    },
+    {
+      "id": "MOUSE-001",
+      "name": "Мышь Logitech M185 (беспроводная)",
+      "description": "2,4 ГГц, 1000 DPI, срок работы батарейки — 12 месяцев.",
+      "price": 1200,
+      "stock": 50,
+      "unit": "шт",
+      "category": "Периферия",
+      "supplier_sku": "LOG-M185-GRY",
+      "discounts": {
+        "20+": 5,
+        "100+": 15
+      }
+    },
+    {
+      "id": "HEADSET-001",
+      "name": "Гарнитура Jabra Evolve2 30",
+      "description": "Сертифицировано для Microsoft Teams/Zoom. Шумоподавление микрофона.",
+      "price": 12500,
+      "stock": 10,
+      "unit": "шт",
+      "category": "Гарнитуры",
+      "supplier_sku": "JAB-EV2-30-USB",
+      "discounts": {
+        "5+": 5,
+        "20+": 10
+      }
+    },
+    {
+      "id": "PRINTER-001",
+      "name": "МФУ HP LaserJet Pro M428fdn",
+      "description": "Лазерное, ч/б, A4, 38 стр/мин, двустороннее, ADF, Ethernet/USB.",
+      "price": 38000,
+      "stock": 4,
+      "unit": "шт",
+      "category": "Принтеры",
+      "supplier_sku": "HP-LJ-M428FDN",
+      "discounts": {
+        "2+": 3,
+        "5+": 7
+      }
+    },
+    {
+      "id": "PRINTER-002",
+      "name": "МФУ Canon PIXMA G3420 (СНПЧ)",
+      "description": "Струйное, цветное, A4, Wi-Fi, встроенная СНПЧ — экономичная печать.",
+      "price": 14900,
+      "stock": 7,
+      "unit": "шт",
+      "category": "Принтеры",
+      "supplier_sku": "CAN-PIXMA-G3420",
+      "discounts": {
+        "3+": 4,
+        "10+": 9
+      }
+    },
+    {
+      "id": "HUB-001",
+      "name": "USB-хаб 7 портов USB 3.0 + блок питания",
+      "description": "Алюминиевый корпус, 7 × USB 3.0, адаптер питания 12 В. Скорость до 5 Гбит/с.",
+      "price": 2400,
+      "stock": 25,
+      "unit": "шт",
+      "category": "Аксессуары",
+      "supplier_sku": "HUB-7P-USB3-ALU",
+      "discounts": {
+        "10+": 6,
+        "50+": 13
+      }
+    },
+    {
+      "id": "SSD-001",
+      "name": "SSD Samsung 870 EVO 500 ГБ (SATA)",
+      "description": "Скорость чтения 560 МБ/с, записи 530 МБ/с. Форм-фактор 2,5\".",
+      "price": 5800,
+      "stock": 20,
+      "unit": "шт",
+      "category": "Накопители",
+      "supplier_sku": "SAM-870EVO-500G",
+      "discounts": {
+        "5+": 4,
+        "20+": 8
+      }
+    },
+    {
+      "id": "RAM-001",
+      "name": "Оперативная память Kingston 16 ГБ DDR4 3200",
+      "description": "SO-DIMM, для ноутбуков. 1 планка × 16 ГБ.",
+      "price": 3800,
+      "stock": 18,
+      "unit": "шт",
+      "category": "Комплектующие",
+      "supplier_sku": "KIN-16G-DDR4-3200",
+      "discounts": {
+        "10+": 5,
+        "30+": 10
+      }
+    },
+    {
+      "id": "WEBCAM-001",
+      "name": "Веб-камера Logitech C920 HD Pro",
+      "description": "Full HD 1080p 30 fps, автофокус, стереомикрофон. USB.",
+      "price": 7800,
+      "stock": 0,
+      "unit": "шт",
+      "category": "Периферия",
+      "supplier_sku": "LOG-C920-HD",
+      "discounts": {
+        "5+": 5,
+        "15+": 10
+      }
+    },
+    {
+      "id": "CABLE-001",
+      "name": "Кабель HDMI 2.0 (1,8 м)",
+      "description": "4K 60 Гц, позолоченные разъёмы, оплётка. Совместим с TV, ПК, монитором.",
+      "price": 590,
+      "stock": 100,
+      "unit": "шт",
+      "category": "Кабели",
+      "supplier_sku": "CABLE-HDMI2-18M",
+      "discounts": {
+        "20+": 8,
+        "100+": 18
+      }
+    }
+  ]
+}
