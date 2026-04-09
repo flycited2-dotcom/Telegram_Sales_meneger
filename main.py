@@ -25,7 +25,7 @@ from telegram.ext import (
     filters,
 )
 
-from config import COMPANY_NAME, MANAGER_NAME, SUPPLIER_TELEGRAM_CHAT_ID, TELEGRAM_BOT_TOKEN
+from config import COMPANY_NAME, GROQ_API_KEY, MANAGER_NAME, SUPPLIER_TELEGRAM_CHAT_ID, TELEGRAM_BOT_TOKEN
 from database import get_client_orders, init_db
 from sales_agent import SalesAgent
 
@@ -193,8 +193,8 @@ def main() -> None:
     if not TELEGRAM_BOT_TOKEN:
         logger.error("TELEGRAM_BOT_TOKEN is not set in .env — aborting.")
         raise SystemExit(1)
-    if not agent._client.api_key:
-        logger.error("ANTHROPIC_API_KEY is not set in .env — aborting.")
+    if not GROQ_API_KEY:
+        logger.error("GROQ_API_KEY is not set in .env — get free key at https://console.groq.com")
         raise SystemExit(1)
 
     app = (

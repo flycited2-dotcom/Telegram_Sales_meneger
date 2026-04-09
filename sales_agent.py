@@ -1,19 +1,22 @@
 """
-Claude-powered Telegram sales agent.
+Groq-powered Telegram sales agent (FREE, no Anthropic API needed).
 
-The SalesAgent class wraps the Anthropic async client, defines all business
-tools, and runs the agentic loop until Claude produces a final text reply.
+Model: llama-3.3-70b-versatile via Groq API
+Get free API key at: https://console.groq.com  (no credit card required)
+Free tier: 14 400 requests/day, 500 000 tokens/minute
 """
 
+import json
 import logging
 import re
 from typing import Optional
 
-import anthropic
+from groq import AsyncGroq
 
 from config import (
-    ANTHROPIC_API_KEY,
     COMPANY_NAME,
+    GROQ_API_KEY,
+    GROQ_MODEL,
     MANAGER_NAME,
     SMTP_HOST,
     SMTP_PASSWORD,
@@ -67,180 +70,222 @@ _SYSTEM_PROMPT = """\
 • Номер заказа передавай клиенту в формате ORD-XXXXXXXX\
 """
 
-# ─── Tool definitions ──────────────────────────────────────────────────────────
+# ─── Tool definitions (OpenAI/Groq format) ────────────────────────────────────
 
 _TOOLS = [
     {
-        "name": "search_products",
-        "description": "Поиск товаров в каталоге по названию или категории.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "query": {"type": "string", "description": "Поисковый запрос"}
-            },
-            "required": ["query"],
-        },
-    },
-    {
-        "name": "get_product_details",
-        "description": "Полная информация о товаре: описание, цена, наличие, скидки.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "product_id": {"type": "string", "description": "ID товара из каталога"}
-            },
-            "required": ["product_id"],
-        },
-    },
-    {
-        "name": "check_availability",
-        "description": "Проверить наличие конкретного товара на складе.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "product_name": {
-                    "type": "string",
-                    "description": "Название или часть названия товара",
-                }
-            },
-            "required": ["product_name"],
-        },
-    },
-    {
-        "name": "calculate_discount",
-        "description": "Рассчитать итоговую цену с учётом оптовых скидок.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "product_id": {"type": "string", "description": "ID товара"},
-                "quantity": {"type": "integer", "description": "Количество единиц"},
-            },
-            "required": ["product_id", "quantity"],
-        },
-    },
-    {
-        "name": "create_order",
-        "description": "Оформить заказ для клиента и записать в базу.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "client_chat_id": {
-                    "type": "integer",
-                    "description": "Telegram chat_id клиента",
+        "type": "function",
+        "function": {
+            "name": "search_products",
+            "description": "Поиск товаров в каталоге по названию или категории.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Поисковый запрос"}
                 },
-                "client_name": {"type": "string", "description": "Имя клиента"},
-                "client_contact": {
-                    "type": "string",
-                    "description": "Телефон или email клиента",
-                },
-                "product_id": {"type": "string", "description": "ID товара (если известен)"},
-                "product_name": {"type": "string", "description": "Название товара"},
-                "quantity": {"type": "integer", "description": "Количество"},
-                "unit_price": {
-                    "type": "number",
-                    "description": "Цена за единицу (уже с учётом скидки)",
-                },
-                "notes": {"type": "string", "description": "Примечания к заказу"},
+                "required": ["query"],
             },
-            "required": [
-                "client_chat_id",
-                "client_name",
-                "product_name",
-                "quantity",
-                "unit_price",
-            ],
         },
     },
     {
-        "name": "notify_supplier",
-        "description": (
-            "Отправить поставщику уведомление о заказе через Telegram или email. "
-            "Вызывать сразу после create_order."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "order_id": {"type": "string", "description": "ID заказа"},
-                "message": {
-                    "type": "string",
-                    "description": (
-                        "Текст сообщения поставщику с деталями заказа: "
-                        "товар, количество, контакт клиента"
-                    ),
+        "type": "function",
+        "function": {
+            "name": "get_product_details",
+            "description": "Полная информация о товаре: описание, цена, наличие, скидки.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "product_id": {
+                        "type": "string",
+                        "description": "ID товара из каталога",
+                    }
                 },
+                "required": ["product_id"],
             },
-            "required": ["order_id", "message"],
         },
     },
     {
-        "name": "get_order_info",
-        "description": "Получить информацию о заказе по его ID.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "order_id": {
-                    "type": "string",
-                    "description": "ID заказа, например ORD-AB12CD34",
-                }
-            },
-            "required": ["order_id"],
-        },
-    },
-    {
-        "name": "get_client_orders",
-        "description": "Получить список активных заказов клиента.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "client_chat_id": {
-                    "type": "integer",
-                    "description": "Telegram chat_id клиента",
-                }
-            },
-            "required": ["client_chat_id"],
-        },
-    },
-    {
-        "name": "update_order_status",
-        "description": "Обновить статус заказа (например, после подтверждения поставщика).",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "order_id": {"type": "string", "description": "ID заказа"},
-                "status": {
-                    "type": "string",
-                    "enum": [
-                        "new",
-                        "confirmed",
-                        "in_stock",
-                        "reserved",
-                        "shipped",
-                        "completed",
-                        "cancelled",
-                    ],
-                    "description": "Новый статус",
+        "type": "function",
+        "function": {
+            "name": "check_availability",
+            "description": "Проверить наличие конкретного товара на складе.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "product_name": {
+                        "type": "string",
+                        "description": "Название или часть названия товара",
+                    }
                 },
-                "notes": {"type": "string", "description": "Комментарий"},
+                "required": ["product_name"],
             },
-            "required": ["order_id", "status"],
         },
     },
     {
-        "name": "send_client_notification",
-        "description": (
-            "Отправить клиенту проактивное сообщение "
-            "(например, о подтверждении заказа поставщиком)."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "client_chat_id": {
-                    "type": "integer",
-                    "description": "Telegram chat_id клиента",
+        "type": "function",
+        "function": {
+            "name": "calculate_discount",
+            "description": "Рассчитать итоговую цену с учётом оптовых скидок.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "product_id": {"type": "string", "description": "ID товара"},
+                    "quantity": {
+                        "type": "integer",
+                        "description": "Количество единиц",
+                    },
                 },
-                "message": {"type": "string", "description": "Текст сообщения"},
+                "required": ["product_id", "quantity"],
             },
-            "required": ["client_chat_id", "message"],
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_order",
+            "description": "Оформить заказ для клиента и записать в базу.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "client_chat_id": {
+                        "type": "integer",
+                        "description": "Telegram chat_id клиента",
+                    },
+                    "client_name": {
+                        "type": "string",
+                        "description": "Имя клиента",
+                    },
+                    "client_contact": {
+                        "type": "string",
+                        "description": "Телефон или email клиента",
+                    },
+                    "product_id": {
+                        "type": "string",
+                        "description": "ID товара (если известен)",
+                    },
+                    "product_name": {
+                        "type": "string",
+                        "description": "Название товара",
+                    },
+                    "quantity": {"type": "integer", "description": "Количество"},
+                    "unit_price": {
+                        "type": "number",
+                        "description": "Цена за единицу (уже с учётом скидки)",
+                    },
+                    "notes": {
+                        "type": "string",
+                        "description": "Примечания к заказу",
+                    },
+                },
+                "required": [
+                    "client_chat_id",
+                    "client_name",
+                    "product_name",
+                    "quantity",
+                    "unit_price",
+                ],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "notify_supplier",
+            "description": (
+                "Отправить поставщику уведомление о заказе через Telegram или email. "
+                "Вызывать сразу после create_order."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "order_id": {"type": "string", "description": "ID заказа"},
+                    "message": {
+                        "type": "string",
+                        "description": "Текст сообщения поставщику: товар, количество, контакт клиента",
+                    },
+                },
+                "required": ["order_id", "message"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_order_info",
+            "description": "Получить информацию о заказе по его ID.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "order_id": {
+                        "type": "string",
+                        "description": "ID заказа, например ORD-AB12CD34",
+                    }
+                },
+                "required": ["order_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_client_orders",
+            "description": "Получить список активных заказов клиента.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "client_chat_id": {
+                        "type": "integer",
+                        "description": "Telegram chat_id клиента",
+                    }
+                },
+                "required": ["client_chat_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_order_status",
+            "description": "Обновить статус заказа (например, после подтверждения поставщика).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "order_id": {"type": "string", "description": "ID заказа"},
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "new",
+                            "confirmed",
+                            "in_stock",
+                            "reserved",
+                            "shipped",
+                            "completed",
+                            "cancelled",
+                        ],
+                        "description": "Новый статус",
+                    },
+                    "notes": {"type": "string", "description": "Комментарий"},
+                },
+                "required": ["order_id", "status"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "send_client_notification",
+            "description": "Отправить клиенту проактивное сообщение (например, о подтверждении заказа).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "client_chat_id": {
+                        "type": "integer",
+                        "description": "Telegram chat_id клиента",
+                    },
+                    "message": {"type": "string", "description": "Текст сообщения"},
+                },
+                "required": ["client_chat_id", "message"],
+            },
         },
     },
 ]
@@ -248,13 +293,14 @@ _TOOLS = [
 
 # ─── Agent class ───────────────────────────────────────────────────────────────
 
+
 class SalesAgent:
-    """Claude-powered sales manager agent."""
+    """Groq-powered sales manager agent (FREE tier)."""
 
     def __init__(self) -> None:
-        self._client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
+        self._client = AsyncGroq(api_key=GROQ_API_KEY)
         self._system = _SYSTEM_PROMPT.format(company=COMPANY_NAME, name=MANAGER_NAME)
-        self._bot = None  # injected after bot is created
+        self._bot = None
 
     def set_bot(self, bot) -> None:
         self._bot = bot
@@ -264,7 +310,6 @@ class SalesAgent:
     async def process_message(
         self, chat_id: int, text: str, user_name: str = "Клиент"
     ) -> str:
-        """Handle an incoming client message and return the agent's reply."""
         history = await get_conversation_history(chat_id)
         history.append({"role": "user", "content": text})
 
@@ -277,77 +322,67 @@ class SalesAgent:
     async def process_supplier_message(
         self, raw_text: str
     ) -> Optional[tuple[int, str]]:
-        """
-        Parse a message from the supplier and notify the relevant client.
-        Returns (client_chat_id, message) or None if nothing actionable.
-        """
         upper = raw_text.upper()
 
-        # Pattern: "ПОДТВЕРЖДАЮ ORD-XXXXXXXX"
         m = re.search(r"ПОДТВЕРЖДАЮ\s+(ORD-[A-Z0-9]+)", upper)
         if m:
-            order_id = m.group(1)
-            return await self._handle_supplier_confirmation(order_id, raw_text)
+            return await self._handle_supplier_confirmation(m.group(1), raw_text)
 
-        # Pattern: "РЕЗЕРВ ORD-XXXXXXXX"
         m = re.search(r"РЕЗЕРВ\s+(ORD-[A-Z0-9]+)", upper)
         if m:
-            order_id = m.group(1)
-            return await self._handle_supplier_reservation(order_id)
+            return await self._handle_supplier_reservation(m.group(1))
 
-        # Pattern: "ОТМЕНА ORD-XXXXXXXX"
         m = re.search(r"ОТМЕНА\s+(ORD-[A-Z0-9]+)", upper)
         if m:
-            order_id = m.group(1)
-            return await self._handle_supplier_cancellation(order_id, raw_text)
+            return await self._handle_supplier_cancellation(m.group(1), raw_text)
 
         return None
 
     async def reset_history(self, chat_id: int) -> None:
         await clear_conversation_history(chat_id)
 
-    # ── Agentic loop ───────────────────────────────────────────────────────────
+    # ── Groq agentic loop ──────────────────────────────────────────────────────
 
     async def _run_loop(self, messages: list, context_chat_id: int) -> str:
-        """Run Claude tool-use loop; return final text response."""
-        working = list(messages)
+        """Run Groq tool-use loop; return final text response."""
+        working = [{"role": "system", "content": self._system}] + list(messages)
 
-        for _ in range(10):  # safety cap — prevents runaway loops
-            response = await self._client.messages.create(
-                model="claude-opus-4-6",
-                max_tokens=2048,
-                system=self._system,
+        for _ in range(10):  # safety cap
+            response = await self._client.chat.completions.create(
+                model=GROQ_MODEL,
                 messages=working,
                 tools=_TOOLS,
+                tool_choice="auto",
+                max_tokens=2048,
+                temperature=0.4,
             )
 
-            if response.stop_reason == "end_turn":
-                parts = [b.text for b in response.content if b.type == "text"]
-                return "\n".join(parts) or "Готово."
+            choice = response.choices[0]
 
-            if response.stop_reason == "tool_use":
-                # Append assistant turn (may contain text + tool_use blocks)
+            # No tool calls → final answer
+            if choice.finish_reason != "tool_calls":
+                return choice.message.content or "Готово."
+
+            # Append assistant message with tool_calls
+            working.append(choice.message.model_dump())
+
+            # Execute each tool call
+            for tool_call in choice.message.tool_calls:
+                try:
+                    args = json.loads(tool_call.function.arguments)
+                except json.JSONDecodeError:
+                    args = {}
+
+                result = await self._execute_tool(
+                    tool_call.function.name, args, context_chat_id
+                )
+                logger.info("Tool %s → %s", tool_call.function.name, result[:80])
+
                 working.append({
-                    "role": "assistant",
-                    "content": [b.model_dump() for b in response.content],
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "content": result,
                 })
-
-                # Execute each tool and collect results
-                results = []
-                for block in response.content:
-                    if block.type == "tool_use":
-                        result = await self._execute_tool(
-                            block.name, block.input, context_chat_id
-                        )
-                        results.append({
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": result,
-                        })
-
-                working.append({"role": "user", "content": results})
-            else:
-                break  # unexpected stop reason
 
         return "Произошла техническая ошибка. Пожалуйста, попробуйте снова."
 
@@ -397,7 +432,7 @@ class SalesAgent:
             logger.exception("Tool %s raised an error", name)
             return f"Ошибка инструмента {name}: {exc}"
 
-    # ── Tool implementations ───────────────────────────────────────────────────
+    # ── Tool implementations (same logic, no changes needed) ──────────────────
 
     def _tool_search_products(self, query: str) -> str:
         products = load_products()
@@ -410,13 +445,12 @@ class SalesAgent:
         ]
         if not matches:
             return f"Товары по запросу «{query}» не найдены."
-
         lines = [f"Найдено: {len(matches)} товар(ов)\n"]
         for p in matches[:10]:
-            stock_label = f"в наличии {p['stock']} {p.get('unit','шт')}" if p["stock"] > 0 else "нет в наличии"
+            stock = f"{p['stock']} {p.get('unit','шт')}" if p["stock"] > 0 else "нет в наличии"
             lines.append(
                 f"• {p['name']} (ID: {p['id']})\n"
-                f"  Цена: {p['price']:,.0f} ₽ | {stock_label}"
+                f"  Цена: {p['price']:,.0f} ₽ | {stock}"
             )
         return "\n".join(lines)
 
@@ -425,13 +459,11 @@ class SalesAgent:
         p = next((x for x in products if x["id"] == product_id), None)
         if not p:
             return f"Товар с ID «{product_id}» не найден."
-
         discounts = p.get("discounts", {})
         disc_block = ""
         if discounts:
             rows = [f"  от {k}: −{v}%" for k, v in discounts.items()]
             disc_block = "\nОптовые скидки:\n" + "\n".join(rows)
-
         return (
             f"Товар: {p['name']}\n"
             f"ID: {p['id']}\n"
@@ -449,13 +481,12 @@ class SalesAgent:
         matches = [p for p in products if q in p["name"].lower()]
         if not matches:
             return f"Товар «{product_name}» не найден в каталоге."
-
         lines = []
         for p in matches:
             if p["stock"] > 0:
                 lines.append(f"✅ {p['name']}: {p['stock']} {p.get('unit','шт')} в наличии")
             else:
-                lines.append(f"⏳ {p['name']}: нет на складе (уточняем у поставщика)")
+                lines.append(f"⏳ {p['name']}: нет на складе (уточним у поставщика)")
         return "\n".join(lines)
 
     def _tool_calculate_discount(self, product_id: str, quantity: int) -> str:
@@ -463,14 +494,12 @@ class SalesAgent:
         p = next((x for x in products if x["id"] == product_id), None)
         if not p:
             return f"Товар с ID «{product_id}» не найден."
-
         base = p["price"]
         disc = 0
         for threshold_str, pct in p.get("discounts", {}).items():
             threshold = int(threshold_str.replace("+", ""))
             if quantity >= threshold:
                 disc = max(disc, pct)
-
         if disc:
             final = base * (1 - disc / 100)
             total = final * quantity
@@ -480,14 +509,13 @@ class SalesAgent:
                 f"Скидка {disc}% → {final:,.0f} ₽/шт\n"
                 f"Итого за {quantity} шт: {total:,.0f} ₽"
             )
-        else:
-            total = base * quantity
-            return (
-                f"{p['name']}\n"
-                f"Цена: {base:,.0f} ₽/шт\n"
-                f"Итого за {quantity} шт: {total:,.0f} ₽\n"
-                f"(скидок для данного объёма нет)"
-            )
+        total = base * quantity
+        return (
+            f"{p['name']}\n"
+            f"Цена: {base:,.0f} ₽/шт\n"
+            f"Итого за {quantity} шт: {total:,.0f} ₽\n"
+            f"(скидок для данного объёма нет)"
+        )
 
     async def _tool_create_order(self, inp: dict) -> str:
         order_id = await db_create_order({
@@ -514,20 +542,16 @@ class SalesAgent:
         order = await get_order(order_id)
         if not order:
             return f"Заказ {order_id} не найден."
-
         full_msg = (
             f"🔔 НОВЫЙ ЗАКАЗ {order_id}\n\n"
             f"{message}\n\n"
             f"━━━━━━━━━━━━━━━━━━━━━━\n"
             f"Ответьте одной из команд:\n"
-            f"ПОДТВЕРЖДАЮ {order_id} — товар есть, принято\n"
-            f"РЕЗЕРВ {order_id}       — зарезервировано\n"
-            f"ОТМЕНА {order_id}       — нет в наличии"
+            f"ПОДТВЕРЖДАЮ {order_id}\n"
+            f"РЕЗЕРВ {order_id}\n"
+            f"ОТМЕНА {order_id}"
         )
-
         notified_via = []
-
-        # Telegram to supplier
         if SUPPLIER_TELEGRAM_CHAT_ID and self._bot:
             try:
                 await self._bot.send_message(
@@ -536,8 +560,6 @@ class SalesAgent:
                 notified_via.append("Telegram")
             except Exception as exc:
                 logger.error("Supplier Telegram notification failed: %s", exc)
-
-        # Email fallback
         if SUPPLIER_EMAIL and not notified_via:
             try:
                 await self._send_email(
@@ -548,40 +570,29 @@ class SalesAgent:
                 notified_via.append("Email")
             except Exception as exc:
                 logger.error("Supplier email notification failed: %s", exc)
-
         if notified_via:
             await update_order(order_id, {"supplier_notified": 1})
             return f"Поставщик уведомлён через {', '.join(notified_via)}."
-        return (
-            "⚠️ Не удалось уведомить поставщика автоматически. "
-            "Проверьте SUPPLIER_TELEGRAM_CHAT_ID или SUPPLIER_EMAIL в .env"
-        )
+        return "⚠️ Не удалось уведомить поставщика. Проверьте SUPPLIER_TELEGRAM_CHAT_ID в .env"
 
     async def _tool_get_order_info(self, order_id: str) -> str:
         order = await get_order(order_id)
         if not order:
             return f"Заказ {order_id} не найден."
-
         status_labels = {
-            "new": "🆕 Новый",
-            "confirmed": "✅ Подтверждён",
-            "in_stock": "📦 Есть у поставщика",
-            "reserved": "🔒 Зарезервирован",
-            "shipped": "🚚 Отправлен",
-            "completed": "✔️ Завершён",
+            "new": "🆕 Новый", "confirmed": "✅ Подтверждён",
+            "in_stock": "📦 Есть у поставщика", "reserved": "🔒 Зарезервирован",
+            "shipped": "🚚 Отправлен", "completed": "✔️ Завершён",
             "cancelled": "❌ Отменён",
         }
-        status = status_labels.get(order["status"], order["status"])
-        supplier_ok = "✅" if order["supplier_notified"] else "⏳ ожидает"
-
         return (
             f"Заказ: {order['id']}\n"
             f"Клиент: {order.get('client_name','—')} / {order.get('client_contact','—')}\n"
             f"Товар: {order['product_name']}\n"
             f"Кол-во: {order['quantity']}\n"
             f"Цена: {order['unit_price']:,.0f} ₽/шт → итого {order['total_price']:,.0f} ₽\n"
-            f"Статус: {status}\n"
-            f"Уведомлён поставщик: {supplier_ok}\n"
+            f"Статус: {status_labels.get(order['status'], order['status'])}\n"
+            f"Уведомлён поставщик: {'✅' if order['supplier_notified'] else '⏳'}\n"
             f"Создан: {order['created_at'][:16]}"
         )
 
@@ -638,8 +649,7 @@ class SalesAgent:
             f"Поставщик подтвердил ваш заказ #{order_id}.\n"
             f"Товар: {order['product_name']} × {order['quantity']}\n"
             f"Сумма: {order['total_price']:,.0f} ₽\n\n"
-            f"Товар зарезервирован. Скоро свяжемся с вами для уточнения "
-            f"деталей доставки и оплаты."
+            f"Товар зарезервирован. Скоро свяжемся для уточнения доставки и оплаты."
         )
         return (order["client_chat_id"], msg)
 
@@ -653,8 +663,7 @@ class SalesAgent:
         msg = (
             f"🔒 Ваш заказ #{order_id} зарезервирован!\n\n"
             f"Товар: {order['product_name']} × {order['quantity']}\n"
-            f"Готов к выдаче. Свяжитесь с нами для согласования "
-            f"оплаты и доставки."
+            f"Готов к выдаче. Свяжитесь с нами для согласования оплаты и доставки."
         )
         return (order["client_chat_id"], msg)
 
@@ -670,8 +679,7 @@ class SalesAgent:
         })
         msg = (
             f"❗ К сожалению, по заказу #{order_id} возникла проблема.\n\n"
-            f"Товар: {order['product_name']}\n\n"
-            f"Поставщик сообщил об отсутствии товара. "
+            f"Товар «{order['product_name']}» временно недоступен у поставщика.\n"
             f"Мы рассмотрим альтернативные варианты и свяжемся с вами."
         )
         return (order["client_chat_id"], msg)
@@ -687,7 +695,6 @@ class SalesAgent:
         msg["To"] = to
         msg["Subject"] = subject
         msg.set_content(body)
-
         await aiosmtplib.send(
             msg,
             hostname=SMTP_HOST,
