@@ -446,26 +446,80 @@ class SalesAgent:
 
     async def _run_loop(self, messages: list, context_chat_id: int) -> str:
         """Run Groq tool-use loop; return final text response."""
+        import asyncio
         working = [{"role": "system", "content": self._system}] + list(messages)
 
-        for _ in range(10):  # safety cap
-            response = await self._client.chat.completions.create(
-                model=GROQ_MODEL,
-                messages=working,
-                tools=_TOOLS,
-                tool_choice="auto",
-                max_tokens=2048,
-                temperature=0.4,
-            )
+        for iteration in range(10):  # safety cap
+            # ── Retry up to 3x on transient Groq errors ───────────────────────
+            response = None
+            last_err = None
+            for attempt in range(3):
+                try:
+                    response = await self._client.chat.completions.create(
+                        model=GROQ_MODEL,
+                        messages=working,
+                        tools=_TOOLS,
+                        tool_choice="auto",
+                        max_tokens=1024,
+                        temperature=0.3,
+                    )
+                    last_err = None
+                    break
+                except Exception as exc:
+                    last_err = exc
+                    err_str = str(exc).lower()
+                    if any(k in err_str for k in (
+                        "failed_generation", "service_unavailable",
+                        "rate_limit", "timeout", "overloaded",
+                    )):
+                        logger.warning("Groq transient error (attempt %d/3): %s", attempt + 1, exc)
+                        await asyncio.sleep(2 ** attempt)
+                        continue
+                    break  # non-retryable, don't retry
+
+            # ── If all retries failed → try once more without tools ────────────
+            if last_err is not None:
+                logger.error("Groq error after 3 attempts: %s", last_err)
+                try:
+                    fallback = await self._client.chat.completions.create(
+                        model=GROQ_MODEL,
+                        messages=working,
+                        max_tokens=512,
+                        temperature=0.3,
+                    )
+                    return fallback.choices[0].message.content or (
+                        "Добрый день! Уточните, пожалуйста, что вас интересует?"
+                    )
+                except Exception as fallback_err:
+                    logger.error("Fallback also failed: %s", fallback_err)
+                    return (
+                        "Добрый день! Сервис чуть перегружен — напишите ещё раз "
+                        "через 30 секунд, я отвечу."
+                    )
 
             choice = response.choices[0]
 
             # No tool calls → final answer
             if choice.finish_reason != "tool_calls":
-                return choice.message.content or "Готово."
+                content = choice.message.content or ""
+                return content if content.strip() else "Готово."
 
-            # Append assistant message with tool_calls
-            working.append(choice.message.model_dump())
+            # ── Append assistant message — explicit dict (safer than model_dump) ─
+            tool_calls_raw = []
+            for tc in (choice.message.tool_calls or []):
+                tool_calls_raw.append({
+                    "id": tc.id,
+                    "type": "function",
+                    "function": {
+                        "name": tc.function.name,
+                        "arguments": tc.function.arguments,
+                    },
+                })
+            working.append({
+                "role": "assistant",
+                "content": choice.message.content or "",
+                "tool_calls": tool_calls_raw,
+            })
 
             # Execute each tool call
             for tool_call in choice.message.tool_calls:
