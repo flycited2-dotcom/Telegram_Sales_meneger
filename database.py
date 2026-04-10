@@ -174,6 +174,13 @@ async def get_client_orders(client_chat_id: int, active_only: bool = True) -> li
 _catalog_cache: Optional[list] = None
 
 
+def reload_products() -> list:
+    """Force-reload products from JSON file (clears cache)."""
+    global _catalog_cache
+    _catalog_cache = None
+    return load_products()
+
+
 def load_products() -> list:
     """Load products from JSON file (cached in memory)."""
     global _catalog_cache

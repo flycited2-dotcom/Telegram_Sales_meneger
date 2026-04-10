@@ -108,10 +108,21 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "/start — приветствие\n"
         "/orders — мои активные заказы\n"
         "/clear — сбросить историю диалога\n"
+        "/reload — перезагрузить каталог товаров\n"
         "/help — эта справка\n\n"
         "Для консультации просто пишите в чат."
     )
     await update.message.reply_text(text, parse_mode="Markdown")
+
+
+async def cmd_reload(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Reload product catalog from products.json without restarting the bot."""
+    from database import reload_products
+    products = reload_products()
+    agent._system = agent._build_system_prompt()
+    await update.message.reply_text(
+        f"✅ Каталог перезагружен: {len(products)} товаров.",
+    )
 
 
 # ─── Message handlers ──────────────────────────────────────────────────────────
@@ -207,6 +218,7 @@ def main() -> None:
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("orders", cmd_orders))
     app.add_handler(CommandHandler("clear", cmd_clear))
+    app.add_handler(CommandHandler("reload", cmd_reload))
     app.add_handler(CommandHandler("help", cmd_help))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 

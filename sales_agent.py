@@ -35,6 +35,7 @@ from database import (
     get_conversation_history,
     get_order,
     load_products,
+    reload_products,
     save_conversation_history,
     update_order,
 )
@@ -99,10 +100,15 @@ _SYSTEM_PROMPT = """\
 • Если настроен API поставщика — используй sync_stock для получения актуальных остатков перед ответом о наличии.
 • Если товара нет в наших остатках — всё равно оформляй заказ, поставщик уточнит наличие.
 
-═══ ЗАПРЕЩЕНО ═══
-• Придумывать цены или характеристики — только из каталога
-• Обещать сроки доставки без подтверждения поставщика
-• Называть себя ботом, ИИ или программой\
+═══ КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО — ЧИТАЙ ВНИМАТЕЛЬНО ═══
+• НИКОГДА не называй цену из своих знаний. Цена — ТОЛЬКО из результата search_products.
+• НИКОГДА не говори что товара нет если не вызвал search_products и не убедился.
+• НИКОГДА не придумывай модели, бренды, характеристики из головы.
+• Если search_products не нашёл — скажи "уточню у поставщика" или предложи похожее что нашёл.
+• Называть себя ботом, ИИ или программой запрещено.
+
+КАТАЛОГ ТОВАРОВ (актуальные данные):
+{catalog_summary}\
 """
 
 # ─── Tool definitions (OpenAI/Groq format) ────────────────────────────────────
@@ -401,9 +407,49 @@ class SalesAgent:
 
     def __init__(self) -> None:
         self._client = AsyncGroq(api_key=GROQ_API_KEY)
-        self._system = _SYSTEM_PROMPT.format(company=COMPANY_NAME, name=MANAGER_NAME)
         self._bot = None
         self._active_model = GROQ_MODEL  # switches to fallback on rate limit
+        self._system = self._build_system_prompt()
+
+    def _build_system_prompt(self) -> str:
+        """Build system prompt with live catalog summary so the model knows what's available."""
+        products = reload_products()
+        if not products:
+            catalog_summary = (
+                "⚠️ КАТАЛОГ ПУСТ. Скажи клиенту что уточняешь наличие у поставщика "
+                "и предложи перезвонить. НЕ придумывай товары."
+            )
+        else:
+            # Build category → brands/count summary
+            from collections import defaultdict
+            cat_data: dict = defaultdict(list)
+            for p in products:
+                cat = p.get("category") or "Без категории"
+                brand = ""
+                # Extract brand from name (first word often is brand)
+                words = p["name"].split()
+                if len(words) >= 2:
+                    brand = words[0]
+                if brand and brand not in cat_data[cat]:
+                    cat_data[cat].append(brand)
+
+            lines = [f"В каталоге {len(products)} товаров в {len(cat_data)} категориях:"]
+            for cat, brands in sorted(cat_data.items()):
+                brands_str = ", ".join(brands[:6])
+                if len(brands) > 6:
+                    brands_str += f" и ещё {len(brands)-6}"
+                lines.append(f"• {cat}: {brands_str}")
+            lines.append(
+                "\nДля поиска ВСЕГДА вызывай search_products с ключевым словом "
+                "(например 'фен', 'утюг', 'холодильник', 'Babyliss')."
+            )
+            catalog_summary = "\n".join(lines)
+
+        return _SYSTEM_PROMPT.format(
+            company=COMPANY_NAME,
+            name=MANAGER_NAME,
+            catalog_summary=catalog_summary,
+        )
 
     def set_bot(self, bot) -> None:
         self._bot = bot
@@ -614,22 +660,51 @@ class SalesAgent:
 
     def _tool_search_products(self, query: str) -> str:
         products = load_products()
-        q = query.lower()
-        matches = [
-            p for p in products
-            if q in p["name"].lower()
-            or q in p.get("category", "").lower()
-            or q in p.get("description", "").lower()
-        ]
-        if not matches:
-            return f"Товары по запросу «{query}» не найдены."
-        lines = [f"Найдено: {len(matches)} товар(ов)\n"]
-        for p in matches[:10]:
-            stock = f"{p['stock']} {p.get('unit','шт')}" if p["stock"] > 0 else "нет в наличии"
+        if not products:
+            return "⚠️ Каталог пуст. Запустите import_excel.py чтобы загрузить прайс."
+
+        # Word-based scoring search
+        words = [w for w in re.split(r"[\s,./\\-]+", query.lower()) if len(w) > 1]
+        if not words:
+            return "Пустой поисковый запрос."
+
+        scored = []
+        for p in products:
+            name_l   = p["name"].lower()
+            cat_l    = p.get("category", "").lower()
+            desc_l   = p.get("description", "").lower()
+            sku_l    = p.get("supplier_sku", "").lower()
+            haystack = f"{name_l} {cat_l} {desc_l} {sku_l}"
+            score = 0
+            for w in words:
+                if w in name_l:
+                    score += 3
+                elif w in cat_l:
+                    score += 2
+                elif w in haystack:
+                    score += 1
+            if score > 0:
+                scored.append((score, p))
+
+        if not scored:
+            return (
+                f"Товары по запросу «{query}» не найдены в каталоге.\n"
+                f"Всего в каталоге: {len(products)} позиций.\n"
+                f"Попробуй другое ключевое слово (например: бренд или тип товара)."
+            )
+
+        scored.sort(key=lambda x: (-x[0], x[1]["price"]))
+        top = [p for _, p in scored[:15]]
+
+        lines = [f"Найдено: {len(scored)} позиций по запросу «{query}»\n"]
+        for p in top:
+            stock_str = f"✅ {p['stock']} {p.get('unit','шт')}" if p["stock"] > 0 else "⏳ под заказ"
             lines.append(
                 f"• {p['name']} (ID: {p['id']})\n"
-                f"  Цена: {p['price']:,.0f} ₽ | {stock}"
+                f"  Цена: {p['price']:,.2f} ₽ | {stock_str}"
             )
+        if len(scored) > 15:
+            lines.append(f"\n...и ещё {len(scored)-15} позиций. Уточни запрос.")
         return "\n".join(lines)
 
     def _tool_get_product_details(self, product_id: str) -> str:
