@@ -74,6 +74,14 @@ _SYSTEM_PROMPT = """\
 На «буду думать» / «позже»:
 → Не дави. «Конечно, я здесь — как надумаете, пишите.»
 
+═══ ФОТО И ХАРАКТЕРИСТИКИ ═══
+• Когда клиент спрашивает о конкретном товаре — сразу отправь фото через search_product_image.
+  Не жди, пока попросит — хорошее фото помогает принять решение.
+• Когда клиент спрашивает характеристики или «что внутри» — вызови search_product_specs.
+  Представь результат как структурированный список: процессор, память, дисплей и т.д.
+• Если в каталоге мало информации о товаре — search_product_specs восполнит пробел.
+• Фото берутся из открытых источников (сайты производителей, обзоры) — без вотермарок.
+
 ═══ ДОПРОДАЖИ И АКСЕССУАРЫ ═══
 • После выбора основного товара ненавязчиво предложи 1–2 сопутствующих (кабели к монитору, мышь к ноутбуку, сумку).
 • Один раз — не повторяй если клиент отказал.
@@ -317,6 +325,52 @@ _TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "search_product_image",
+            "description": (
+                "Найти и отправить клиенту фото товара из открытых источников (без вотермарок поставщика). "
+                "Вызывай когда клиент спрашивает как выглядит товар, или при первом упоминании конкретного товара. "
+                "Фото отправляется прямо в чат клиенту."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "product_name": {
+                        "type": "string",
+                        "description": "Полное название товара для поиска фото (на русском или английском)",
+                    },
+                    "client_chat_id": {
+                        "type": "integer",
+                        "description": "Telegram chat_id клиента, которому отправить фото",
+                    },
+                },
+                "required": ["product_name", "client_chat_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_product_specs",
+            "description": (
+                "Найти технические характеристики товара в интернете. "
+                "Используй когда клиент спрашивает характеристики, параметры, спецификации, "
+                "или когда в каталоге недостаточно информации о товаре."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "product_name": {
+                        "type": "string",
+                        "description": "Полное название товара для поиска характеристик",
+                    },
+                },
+                "required": ["product_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "sync_stock",
             "description": (
                 "Получить актуальные остатки напрямую с API поставщика. "
@@ -473,6 +527,13 @@ class SalesAgent:
                     return await self._tool_send_client_notification(
                         inputs["client_chat_id"], inputs["message"]
                     )
+                case "search_product_image":
+                    return await self._tool_search_product_image(
+                        inputs["product_name"],
+                        inputs.get("client_chat_id", context_chat_id),
+                    )
+                case "search_product_specs":
+                    return await self._tool_search_product_specs(inputs["product_name"])
                 case "sync_stock":
                     return await self._tool_sync_stock(inputs.get("sku", ""))
                 case _:
@@ -679,6 +740,142 @@ class SalesAgent:
             return f"Уведомление отправлено клиенту {client_chat_id}."
         except Exception as exc:
             return f"Не удалось отправить уведомление: {exc}"
+
+    async def _tool_search_product_image(
+        self, product_name: str, client_chat_id: int
+    ) -> str:
+        """Search a clean product image online and send it to the client via Telegram."""
+        try:
+            import asyncio
+            import io
+            from duckduckgo_search import DDGS
+
+            # Prioritise manufacturer/review sites, skip marketplaces with watermarks
+            query = (
+                f"{product_name} product photo"
+                " -site:aliexpress.com -site:ebay.com -site:avito.ru"
+                " -site:wildberries.ru -site:ozon.ru"
+            )
+
+            def _ddg_images():
+                with DDGS() as ddgs:
+                    return list(ddgs.images(
+                        keywords=query,
+                        max_results=15,
+                        size="Medium",
+                        type_image="photo",
+                    ))
+
+            results = await asyncio.to_thread(_ddg_images)
+
+            if not results:
+                return f"Фото для «{product_name}» не найдено в открытых источниках."
+
+            import aiohttp
+            async with aiohttp.ClientSession() as session:
+                for result in results:
+                    img_url = result.get("image", "")
+                    source = result.get("url", "")
+                    if not img_url:
+                        continue
+                    # Skip obviously watermarked / low-quality sources
+                    skip_domains = ("aliexpress", "ebay", "avito", "wildberries", "ozon", "taobao")
+                    if any(d in img_url.lower() for d in skip_domains):
+                        continue
+                    try:
+                        async with session.get(
+                            img_url,
+                            timeout=aiohttp.ClientTimeout(total=10),
+                            headers={"User-Agent": "Mozilla/5.0"},
+                        ) as resp:
+                            if resp.status != 200:
+                                continue
+                            content_type = resp.headers.get("Content-Type", "")
+                            if "image" not in content_type:
+                                continue
+                            img_bytes = await resp.read()
+                            if len(img_bytes) < 5000:   # skip tiny/broken images
+                                continue
+                            await self._bot.send_photo(
+                                chat_id=client_chat_id,
+                                photo=io.BytesIO(img_bytes),
+                                caption=f"📷 {product_name}",
+                            )
+                            return f"Фото товара «{product_name}» отправлено клиенту."
+                    except Exception:
+                        continue
+
+            # Fallback: send URL directly (Telegram can fetch it)
+            for result in results:
+                img_url = result.get("image", "")
+                if img_url:
+                    try:
+                        await self._bot.send_photo(
+                            chat_id=client_chat_id,
+                            photo=img_url,
+                            caption=f"📷 {product_name}",
+                        )
+                        return f"Фото товара «{product_name}» отправлено клиенту."
+                    except Exception:
+                        continue
+
+            return f"Не удалось отправить фото «{product_name}» — все источники недоступны."
+
+        except ImportError:
+            return "Установите библиотеку: pip install duckduckgo-search"
+        except Exception as exc:
+            logger.error("search_product_image error: %s", exc)
+            return f"Ошибка поиска фото: {exc}"
+
+    async def _tool_search_product_specs(self, product_name: str) -> str:
+        """Search product specifications online via DuckDuckGo and return key specs."""
+        try:
+            import asyncio
+            from duckduckgo_search import DDGS
+
+            def _ddg_text():
+                with DDGS() as ddgs:
+                    return list(ddgs.text(
+                        keywords=f"{product_name} характеристики технические specifications",
+                        max_results=6,
+                        region="ru-ru",
+                    ))
+
+            results = await asyncio.to_thread(_ddg_text)
+
+            if not results:
+                # Try in English if Russian search yielded nothing
+                def _ddg_text_en():
+                    with DDGS() as ddgs:
+                        return list(ddgs.text(
+                            keywords=f"{product_name} full specifications",
+                            max_results=6,
+                        ))
+                results = await asyncio.to_thread(_ddg_text_en)
+
+            if not results:
+                return f"Характеристики для «{product_name}» не найдены в открытых источниках."
+
+            # Build a context blob for the LLM to summarize
+            lines = [
+                f"Данные из интернета по запросу «{product_name} характеристики».\n"
+                "Извлеки из этого текста ключевые технические параметры и представь "
+                "клиенту в виде краткого структурированного списка.\n"
+            ]
+            for r in results[:4]:
+                title = r.get("title", "")
+                body = r.get("body", "")
+                href = r.get("href", "")
+                if body:
+                    lines.append(f"[{title}] ({href})\n{body}\n")
+
+            return "\n".join(lines)
+
+        except ImportError:
+            return "Установите библиотеку: pip install duckduckgo-search"
+        except Exception as exc:
+            logger.error("search_product_specs error: %s", exc)
+            return f"Ошибка поиска характеристик: {exc}"
 
     async def _tool_sync_stock(self, sku: str = "") -> str:
         """Fetch live stock from supplier API (SUPPLIER_API_URL + SUPPLIER_API_KEY)."""
