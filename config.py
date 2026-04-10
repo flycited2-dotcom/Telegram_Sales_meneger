@@ -36,5 +36,5 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE_PATH = os.path.join(BASE_DIR, "data", "sales.db")
 PRODUCTS_FILE = os.path.join(BASE_DIR, "data", "products.json")
 
-# Conversation history: keep last N messages per client
-MAX_HISTORY_MESSAGES = 30
+# Conversation history: keep last N messages per client (keep low to save tokens)
+MAX_HISTORY_MESSAGES = 6

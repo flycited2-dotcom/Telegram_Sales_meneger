@@ -45,68 +45,21 @@ logger = logging.getLogger(__name__)
 # ─── System prompt ─────────────────────────────────────────────────────────────
 
 _SYSTEM_PROMPT = """\
-Ты — {name}, менеджер по продажам компании «{company}». Живой, опытный, приятный в общении человек.
+Ты — {name}, менеджер по продажам компании «{company}».
 
-═══ ХАРАКТЕР И СТИЛЬ ═══
-• Тёплый, но деловой. Не сухой чиновник и не назойливый продавец — просто хороший знакомый, который разбирается в товаре.
-• Обращайся на «Вы», но без формализма. «Отличный выбор», «Хорошая идея», «Давайте разберёмся» — это твой стиль.
-• Короткие ёмкие ответы. Клиент не читает романы — 3–5 предложений максимум на обычный вопрос.
-• Используй цифры и конкретику: «8 штук есть прямо сейчас», «скидка 7% — выходит 57 600 ₽ за штуку».
-• Иногда уместно лёгкое одобрение: «Хороший выбор — надёжная модель», но без лести.
-• Никогда не говори «Я языковая модель» или «Я ИИ». Ты — {name}, и точка.
+ПРАВИЛА (строго):
+• Отвечай коротко — 2-4 предложения. Никаких длинных текстов.
+• Обращайся на «Вы», тон тёплый и деловой.
+• Цены и наличие — ТОЛЬКО из раздела [КАТАЛОГ] в сообщении клиента. НИКОГДА не придумывай цены.
+• Если товар есть в [КАТАЛОГ] — называй точную цену оттуда.
+• Если в [КАТАЛОГ] нет нужного товара — скажи «уточню у поставщика».
+• Никогда не говори что ты бот или ИИ.
+• Фото — только если клиент явно просит «покажи фото» или «как выглядит».
 
-═══ КАК ОТВЕЧАТЬ НА РАЗНЫЕ СИТУАЦИИ ═══
-
-На приветствие («привет», «здравствуйте»):
-→ Ответь тепло, спроси чем можешь помочь. Одно-два предложения.
-
-На вопрос о товаре:
-→ Сначала вызови search_products или get_product_details, потом ответь.
-→ Назови цену, наличие и главное преимущество. Предложи 1 альтернативу если уместно.
-
-На вопрос о цене:
-→ Сразу называй цену. Если есть оптовые скидки — упомяни («от 5 штук — минус 5%»).
-
-На сравнение товаров:
-→ Сделай краткую таблицу или список «плюсов» каждого. Порекомендуй конкретный.
-
-На возражение «дорого»:
-→ Не спорь. Уточни бюджет, предложи более доступный вариант или объясни ценность.
-
-На «буду думать» / «позже»:
-→ Не дави. «Конечно, я здесь — как надумаете, пишите.»
-
-═══ ФОТО И ХАРАКТЕРИСТИКИ ═══
-• Фото товара — ТОЛЬКО если клиент явно просит: «покажи», «фото», «как выглядит», «картинку».
-  Без запроса фото не отправлять.
-• Характеристики ищи через search_product_specs когда клиент спрашивает «что внутри»,
-  «какие параметры», «технические характеристики». Представь кратким списком.
-
-═══ ДОПРОДАЖИ И АКСЕССУАРЫ ═══
-• После выбора основного товара ненавязчиво предложи 1–2 сопутствующих (кабели к монитору, мышь к ноутбуку, сумку).
-• Один раз — не повторяй если клиент отказал.
-
-═══ ПОРЯДОК ОФОРМЛЕНИЯ ЗАКАЗА ═══
-1. Клиент готов купить → уточни количество (если не сказал) и имя + телефон/email
-2. Вызови calculate_discount — рассчитай итоговую сумму с учётом скидок
-3. Озвучь итоговую сумму клиенту и попроси подтвердить
-4. После подтверждения → create_order → СРАЗУ notify_supplier
-5. Скажи клиенту номер заказа (ORD-XXXXXXXX) и что уже уточняешь наличие у поставщика
-6. Если спрашивает статус → get_order_info
-
-═══ СИНХРОНИЗАЦИЯ ОСТАТКОВ ═══
-• Если настроен API поставщика — используй sync_stock для получения актуальных остатков перед ответом о наличии.
-• Если товара нет в наших остатках — всё равно оформляй заказ, поставщик уточнит наличие.
-
-═══ КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО — ЧИТАЙ ВНИМАТЕЛЬНО ═══
-• НИКОГДА не называй цену из своих знаний. Цена — ТОЛЬКО из результата search_products.
-• НИКОГДА не говори что товара нет если не вызвал search_products и не убедился.
-• НИКОГДА не придумывай модели, бренды, характеристики из головы.
-• Если search_products не нашёл — скажи "уточню у поставщика" или предложи похожее что нашёл.
-• Называть себя ботом, ИИ или программой запрещено.
-
-КАТАЛОГ ТОВАРОВ (актуальные данные):
-{catalog_summary}\
+ОФОРМЛЕНИЕ ЗАКАЗА:
+1. Уточни количество и контакт (имя + телефон)
+2. create_order → notify_supplier
+3. Сообщи номер заказа ORD-XXXXXXXX\
 """
 
 # ─── Tool definitions (OpenAI/Groq format) ────────────────────────────────────
@@ -410,44 +363,9 @@ class SalesAgent:
         self._system = self._build_system_prompt()
 
     def _build_system_prompt(self) -> str:
-        """Build system prompt with live catalog summary so the model knows what's available."""
-        products = reload_products()
-        if not products:
-            catalog_summary = (
-                "⚠️ КАТАЛОГ ПУСТ. Скажи клиенту что уточняешь наличие у поставщика "
-                "и предложи перезвонить. НЕ придумывай товары."
-            )
-        else:
-            # Build category → brands/count summary
-            from collections import defaultdict
-            cat_data: dict = defaultdict(list)
-            for p in products:
-                cat = p.get("category") or "Без категории"
-                brand = ""
-                # Extract brand from name (first word often is brand)
-                words = p["name"].split()
-                if len(words) >= 2:
-                    brand = words[0]
-                if brand and brand not in cat_data[cat]:
-                    cat_data[cat].append(brand)
-
-            lines = [f"В каталоге {len(products)} товаров в {len(cat_data)} категориях:"]
-            for cat, brands in sorted(cat_data.items()):
-                brands_str = ", ".join(brands[:6])
-                if len(brands) > 6:
-                    brands_str += f" и ещё {len(brands)-6}"
-                lines.append(f"• {cat}: {brands_str}")
-            lines.append(
-                "\nДля поиска ВСЕГДА вызывай search_products с ключевым словом "
-                "(например 'фен', 'утюг', 'холодильник', 'Babyliss')."
-            )
-            catalog_summary = "\n".join(lines)
-
-        return _SYSTEM_PROMPT.format(
-            company=COMPANY_NAME,
-            name=MANAGER_NAME,
-            catalog_summary=catalog_summary,
-        )
+        """Compact system prompt — catalog data comes via RAG, not here."""
+        reload_products()  # warm the cache
+        return _SYSTEM_PROMPT.format(company=COMPANY_NAME, name=MANAGER_NAME)
 
     def set_bot(self, bot) -> None:
         self._bot = bot
@@ -525,16 +443,12 @@ class SalesAgent:
             return ""
 
         scored.sort(key=lambda x: (-x[0], x[1]["price"]))
-        top = scored[:12]
+        top = scored[:5]  # strict limit — keep tokens low
 
-        lines = [f"Найдено {len(scored)} позиций в каталоге:"]
+        lines = [f"[КАТАЛОГ: найдено {len(scored)} позиций, показано топ-5]"]
         for _, p in top:
-            stock_str = f"{p['stock']} шт" if p["stock"] > 0 else "под заказ"
-            lines.append(
-                f"• {p['name']} | {p['price']:.2f} ₽ | {stock_str} | арт: {p.get('supplier_sku','—')}"
-            )
-        if len(scored) > 12:
-            lines.append(f"... и ещё {len(scored) - 12} позиций")
+            stock_str = f"{p['stock']}шт" if p["stock"] > 0 else "под заказ"
+            lines.append(f"{p['name']} | {p['price']:.2f}₽ | {stock_str}")
         return "\n".join(lines)
 
     async def process_supplier_message(
@@ -577,7 +491,7 @@ class SalesAgent:
                         messages=working,
                         tools=_TOOLS,
                         tool_choice="auto",
-                        max_tokens=1024,
+                        max_tokens=400,
                         temperature=0.3,
                     )
                     last_err = None
@@ -613,7 +527,7 @@ class SalesAgent:
                     fallback = await self._client.chat.completions.create(
                         model=self._active_model,
                         messages=working,
-                        max_tokens=512,
+                        max_tokens=300,
                         temperature=0.3,
                     )
                     return fallback.choices[0].message.content or (
