@@ -14,6 +14,10 @@ GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 SUPPLIER_TELEGRAM_CHAT_ID = os.getenv("SUPPLIER_TELEGRAM_CHAT_ID", "")
 SUPPLIER_EMAIL = os.getenv("SUPPLIER_EMAIL", "")
 
+# Supplier REST API — for live stock sync (optional)
+SUPPLIER_API_URL = os.getenv("SUPPLIER_API_URL", "")
+SUPPLIER_API_KEY = os.getenv("SUPPLIER_API_KEY", "")
+
 # SMTP (optional, used if Telegram supplier notification fails)
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))

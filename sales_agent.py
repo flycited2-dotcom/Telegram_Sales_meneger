@@ -22,6 +22,8 @@ from config import (
     SMTP_PASSWORD,
     SMTP_PORT,
     SMTP_USER,
+    SUPPLIER_API_KEY,
+    SUPPLIER_API_URL,
     SUPPLIER_EMAIL,
     SUPPLIER_TELEGRAM_CHAT_ID,
 )
@@ -41,33 +43,57 @@ logger = logging.getLogger(__name__)
 # ─── System prompt ─────────────────────────────────────────────────────────────
 
 _SYSTEM_PROMPT = """\
-Ты — опытный менеджер по продажам компании {company}. Тебя зовут {name}.
+Ты — {name}, менеджер по продажам компании «{company}». Живой, опытный, приятный в общении человек.
 
-═══ ТВОИ ЗАДАЧИ ═══
-1. Консультировать клиентов по товарам, ценам и наличию
-2. Предлагать подходящие товары, рассказывать о скидках
-3. Оформлять заказы клиентов
-4. Немедленно уведомлять поставщика о каждом новом заказе
-5. Информировать клиентов о статусе их заказов
+═══ ХАРАКТЕР И СТИЛЬ ═══
+• Тёплый, но деловой. Не сухой чиновник и не назойливый продавец — просто хороший знакомый, который разбирается в товаре.
+• Обращайся на «Вы», но без формализма. «Отличный выбор», «Хорошая идея», «Давайте разберёмся» — это твой стиль.
+• Короткие ёмкие ответы. Клиент не читает романы — 3–5 предложений максимум на обычный вопрос.
+• Используй цифры и конкретику: «8 штук есть прямо сейчас», «скидка 7% — выходит 57 600 ₽ за штуку».
+• Иногда уместно лёгкое одобрение: «Хороший выбор — надёжная модель», но без лести.
+• Никогда не говори «Я языковая модель» или «Я ИИ». Ты — {name}, и точка.
 
-═══ СТИЛЬ ОБЩЕНИЯ ═══
-• Вежливый, профессиональный тон; обращайся на «Вы»
-• Давай конкретные ответы: цена, наличие, срок
-• Будь инициативным — предлагай альтернативы и аксессуары
-• Не расписывай лишнего — клиент ценит чёткость
+═══ КАК ОТВЕЧАТЬ НА РАЗНЫЕ СИТУАЦИИ ═══
 
-═══ ПОРЯДОК РАБОТЫ С ЗАКАЗОМ ═══
-1. Клиент хочет купить → уточни количество и контактные данные (имя + телефон или email)
-2. Рассчитай цену (учти скидки при опте) через calculate_discount
-3. Создай заказ через create_order
-4. СРАЗУ уведоми поставщика через notify_supplier
-5. Сообщи клиенту номер заказа и что уже уточняешь наличие у поставщика
-6. Если клиент спрашивает статус — используй get_order_info
+На приветствие («привет», «здравствуйте»):
+→ Ответь тепло, спроси чем можешь помочь. Одно-два предложения.
 
-═══ ВАЖНО ═══
-• Всегда вызывай notify_supplier сразу после create_order — не пропускай этот шаг
-• Если товара нет на складе — всё равно оформляй заказ и уточняй у поставщика
-• Номер заказа передавай клиенту в формате ORD-XXXXXXXX\
+На вопрос о товаре:
+→ Сначала вызови search_products или get_product_details, потом ответь.
+→ Назови цену, наличие и главное преимущество. Предложи 1 альтернативу если уместно.
+
+На вопрос о цене:
+→ Сразу называй цену. Если есть оптовые скидки — упомяни («от 5 штук — минус 5%»).
+
+На сравнение товаров:
+→ Сделай краткую таблицу или список «плюсов» каждого. Порекомендуй конкретный.
+
+На возражение «дорого»:
+→ Не спорь. Уточни бюджет, предложи более доступный вариант или объясни ценность.
+
+На «буду думать» / «позже»:
+→ Не дави. «Конечно, я здесь — как надумаете, пишите.»
+
+═══ ДОПРОДАЖИ И АКСЕССУАРЫ ═══
+• После выбора основного товара ненавязчиво предложи 1–2 сопутствующих (кабели к монитору, мышь к ноутбуку, сумку).
+• Один раз — не повторяй если клиент отказал.
+
+═══ ПОРЯДОК ОФОРМЛЕНИЯ ЗАКАЗА ═══
+1. Клиент готов купить → уточни количество (если не сказал) и имя + телефон/email
+2. Вызови calculate_discount — рассчитай итоговую сумму с учётом скидок
+3. Озвучь итоговую сумму клиенту и попроси подтвердить
+4. После подтверждения → create_order → СРАЗУ notify_supplier
+5. Скажи клиенту номер заказа (ORD-XXXXXXXX) и что уже уточняешь наличие у поставщика
+6. Если спрашивает статус → get_order_info
+
+═══ СИНХРОНИЗАЦИЯ ОСТАТКОВ ═══
+• Если настроен API поставщика — используй sync_stock для получения актуальных остатков перед ответом о наличии.
+• Если товара нет в наших остатках — всё равно оформляй заказ, поставщик уточнит наличие.
+
+═══ ЗАПРЕЩЕНО ═══
+• Придумывать цены или характеристики — только из каталога
+• Обещать сроки доставки без подтверждения поставщика
+• Называть себя ботом, ИИ или программой\
 """
 
 # ─── Tool definitions (OpenAI/Groq format) ────────────────────────────────────
@@ -288,6 +314,27 @@ _TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "sync_stock",
+            "description": (
+                "Получить актуальные остатки напрямую с API поставщика. "
+                "Используй перед ответом о наличии, если клиент спрашивает «есть ли сейчас», «сколько в наличии». "
+                "Возвращает список товаров с актуальными остатками от поставщика."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "sku": {
+                        "type": "string",
+                        "description": "Артикул (supplier_sku) конкретного товара. Если пустой — получить все остатки.",
+                    }
+                },
+                "required": [],
+            },
+        },
+    },
 ]
 
 
@@ -426,6 +473,8 @@ class SalesAgent:
                     return await self._tool_send_client_notification(
                         inputs["client_chat_id"], inputs["message"]
                     )
+                case "sync_stock":
+                    return await self._tool_sync_stock(inputs.get("sku", ""))
                 case _:
                     return f"Неизвестный инструмент: {name}"
         except Exception as exc:
@@ -630,6 +679,107 @@ class SalesAgent:
             return f"Уведомление отправлено клиенту {client_chat_id}."
         except Exception as exc:
             return f"Не удалось отправить уведомление: {exc}"
+
+    async def _tool_sync_stock(self, sku: str = "") -> str:
+        """Fetch live stock from supplier API (SUPPLIER_API_URL + SUPPLIER_API_KEY)."""
+        if not SUPPLIER_API_URL:
+            return (
+                "API поставщика не настроен. "
+                "Укажите SUPPLIER_API_URL и SUPPLIER_API_KEY в файле .env"
+            )
+        try:
+            import aiohttp
+            headers = {}
+            if SUPPLIER_API_KEY:
+                headers["Authorization"] = f"Bearer {SUPPLIER_API_KEY}"
+                headers["X-Api-Key"] = SUPPLIER_API_KEY
+
+            url = SUPPLIER_API_URL.rstrip("/")
+            params = {}
+            if sku:
+                # Try common parameter names for SKU filtering
+                params["sku"] = sku
+                params["article"] = sku
+
+            async with aiohttp.ClientSession(headers=headers) as session:
+                async with session.get(
+                    url, params=params, timeout=aiohttp.ClientTimeout(total=10)
+                ) as resp:
+                    if resp.status != 200:
+                        return f"API поставщика вернул ошибку {resp.status}."
+                    data = await resp.json(content_type=None)
+
+            # ── Parse common API response formats ────────────────────────────
+            items = []
+
+            # Format 1: {"items": [...]} or {"products": [...]} or {"data": [...]}
+            if isinstance(data, dict):
+                for key in ("items", "products", "data", "stock", "goods", "result"):
+                    if key in data and isinstance(data[key], list):
+                        items = data[key]
+                        break
+                if not items and all(isinstance(v, (int, float)) for v in data.values()):
+                    # Format 2: {"SKU-001": 10, "SKU-002": 5}
+                    items = [{"sku": k, "stock": v} for k, v in data.items()]
+
+            # Format 3: list of objects directly
+            elif isinstance(data, list):
+                items = data
+
+            if not items:
+                return f"API поставщика ответил, но данные не распознаны. Ответ: {str(data)[:300]}"
+
+            # ── Update local products.json with fresh stock levels ────────────
+            from database import load_products
+            import json as _json
+
+            products = load_products()
+            product_map = {p["supplier_sku"].lower(): p for p in products if p.get("supplier_sku")}
+            updated = []
+
+            for item in items:
+                # Detect SKU field
+                item_sku = (
+                    item.get("sku") or item.get("article") or item.get("artikul")
+                    or item.get("code") or item.get("id") or ""
+                ).lower()
+                # Detect stock field
+                item_stock = (
+                    item.get("stock") or item.get("quantity") or item.get("qty")
+                    or item.get("count") or item.get("balance") or item.get("остаток") or 0
+                )
+                try:
+                    item_stock = int(item_stock)
+                except (TypeError, ValueError):
+                    item_stock = 0
+
+                if item_sku and item_sku in product_map:
+                    old = product_map[item_sku]["stock"]
+                    product_map[item_sku]["stock"] = item_stock
+                    updated.append(
+                        f"  {product_map[item_sku]['name']}: {old} → {item_stock} шт"
+                    )
+
+            if updated:
+                # Save updated products.json
+                from config import PRODUCTS_FILE
+                with open(PRODUCTS_FILE, "w", encoding="utf-8") as f:
+                    _json.dump({"products": products}, f, ensure_ascii=False, indent=2)
+                return (
+                    f"✅ Остатки обновлены ({len(updated)} позиций):\n"
+                    + "\n".join(updated)
+                )
+
+            return (
+                f"API ответил ({len(items)} позиций), но совпадений с нашим каталогом "
+                f"по полю supplier_sku не найдено. Проверьте артикулы в products.json."
+            )
+
+        except ImportError:
+            return "Установите aiohttp: pip install aiohttp"
+        except Exception as exc:
+            logger.error("sync_stock error: %s", exc)
+            return f"Ошибка при обращении к API поставщика: {exc}"
 
     # ── Supplier reply handlers ────────────────────────────────────────────────
 
