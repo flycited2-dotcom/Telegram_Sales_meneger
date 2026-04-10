@@ -117,11 +117,9 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def cmd_reload(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Reload product catalog from products.json without restarting the bot."""
-    from database import reload_products
-    products = reload_products()
-    agent._system = agent._build_system_prompt()
+    count = agent.refresh()
     await update.message.reply_text(
-        f"✅ Каталог перезагружен: {len(products)} товаров.",
+        f"✅ Каталог перезагружен: {count} товаров.",
     )
 
 
