@@ -77,12 +77,10 @@ _SYSTEM_PROMPT = """\
 → Не дави. «Конечно, я здесь — как надумаете, пишите.»
 
 ═══ ФОТО И ХАРАКТЕРИСТИКИ ═══
-• Когда клиент спрашивает о конкретном товаре — сразу отправь фото через search_product_image.
-  Не жди, пока попросит — хорошее фото помогает принять решение.
-• Когда клиент спрашивает характеристики или «что внутри» — вызови search_product_specs.
-  Представь результат как структурированный список: процессор, память, дисплей и т.д.
-• Если в каталоге мало информации о товаре — search_product_specs восполнит пробел.
-• Фото берутся из открытых источников (сайты производителей, обзоры) — без вотермарок.
+• Фото товара — ТОЛЬКО если клиент явно просит: «покажи», «фото», «как выглядит», «картинку».
+  Без запроса фото не отправлять.
+• Характеристики ищи через search_product_specs когда клиент спрашивает «что внутри»,
+  «какие параметры», «технические характеристики». Представь кратким списком.
 
 ═══ ДОПРОДАЖИ И АКСЕССУАРЫ ═══
 • После выбора основного товара ненавязчиво предложи 1–2 сопутствующих (кабели к монитору, мышь к ноутбуку, сумку).
@@ -460,13 +458,84 @@ class SalesAgent:
         self, chat_id: int, text: str, user_name: str = "Клиент"
     ) -> str:
         history = await get_conversation_history(chat_id)
-        history.append({"role": "user", "content": text})
+
+        # RAG: find relevant products BEFORE calling LLM.
+        # This guarantees the model uses catalog data instead of its training knowledge.
+        catalog_ctx = self._rag_search(text)
+        if catalog_ctx:
+            # Inject as hidden system note inside user turn
+            augmented = (
+                f"{text}\n\n"
+                f"[ДАННЫЕ ИЗ КАТАЛОГА — используй ТОЛЬКО эти цены и наличие, "
+                f"не придумывай ничего своего]\n{catalog_ctx}"
+            )
+            history.append({"role": "user", "content": augmented})
+        else:
+            history.append({"role": "user", "content": text})
 
         reply = await self._run_loop(history, context_chat_id=chat_id)
 
+        # Save original text (without injected catalog) to keep history clean
+        history[-1] = {"role": "user", "content": text}
         history.append({"role": "assistant", "content": reply})
         await save_conversation_history(chat_id, history, user_name)
         return reply
+
+    def _rag_search(self, text: str) -> str:
+        """Pre-search catalog by keywords in user message (Retrieval-Augmented Generation).
+        Returns formatted product list to inject into the LLM context."""
+        products = load_products()
+        if not products:
+            return ""
+
+        # Strip common stop-words, keep meaningful tokens (len > 2)
+        _STOP = {
+            "нужен","нужна","нужно","хочу","хочет","хотим","дайте","покажи","есть",
+            "ли","что","как","где","сколько","стоит","цена","цены","покажи","расскажи",
+            "меня","интересует","интересуют","нас","мне","нам","вас","вам","у","в",
+            "на","и","или","но","так","не","это","который","которая","которые",
+            "про","для","от","до","по","за","при","под","над","без","из","со",
+        }
+        words = [
+            w for w in re.split(r"[\s,./!?()\[\]]+", text.lower())
+            if len(w) > 2 and w not in _STOP
+        ]
+        if not words:
+            return ""
+
+        scored: list[tuple[int, dict]] = []
+        for p in products:
+            name_l    = p["name"].lower()
+            cat_l     = p.get("category", "").lower()
+            desc_l    = p.get("description", "").lower()
+            sku_l     = p.get("supplier_sku", "").lower()
+            haystack  = f"{name_l} {cat_l} {desc_l} {sku_l}"
+            score = 0
+            for w in words:
+                if w in name_l:
+                    score += 3
+                elif w in cat_l:
+                    score += 2
+                elif w in haystack:
+                    score += 1
+            if score > 0:
+                scored.append((score, p))
+
+        if not scored:
+            return ""
+
+        scored.sort(key=lambda x: (-x[0], x[1]["price"]))
+        top = scored[:12]
+
+        lines = [f"Найдено {len(scored)} позиций в каталоге:"]
+        for _, p in top:
+            stock_str = f"{p['stock']} шт" if p["stock"] > 0 else "под заказ"
+            lines.append(
+                f"• {p['name']} | {p['price']:.2f} ₽ | {stock_str} | арт: {p.get('supplier_sku','—')}"
+            )
+        if len(scored) > 12:
+            lines.append(f"... и ещё {len(scored) - 12} позиций")
+        return "\n".join(lines)
 
     async def process_supplier_message(
         self, raw_text: str
