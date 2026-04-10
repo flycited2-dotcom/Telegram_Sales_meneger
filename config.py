@@ -8,7 +8,10 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 
 # Groq (FREE — get key at https://console.groq.com, no credit card needed)
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+# Primary model: 100K tokens/day free
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+# Fallback model: 500K tokens/day free — used when primary hits rate limit
+GROQ_MODEL_FALLBACK = os.getenv("GROQ_MODEL_FALLBACK", "llama-3.1-8b-instant")
 
 # Supplier notification channels
 SUPPLIER_TELEGRAM_CHAT_ID = os.getenv("SUPPLIER_TELEGRAM_CHAT_ID", "")

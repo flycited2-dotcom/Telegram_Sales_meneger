@@ -17,6 +17,7 @@ from config import (
     COMPANY_NAME,
     GROQ_API_KEY,
     GROQ_MODEL,
+    GROQ_MODEL_FALLBACK,
     MANAGER_NAME,
     SMTP_HOST,
     SMTP_PASSWORD,
@@ -402,6 +403,7 @@ class SalesAgent:
         self._client = AsyncGroq(api_key=GROQ_API_KEY)
         self._system = _SYSTEM_PROMPT.format(company=COMPANY_NAME, name=MANAGER_NAME)
         self._bot = None
+        self._active_model = GROQ_MODEL  # switches to fallback on rate limit
 
     def set_bot(self, bot) -> None:
         self._bot = bot
@@ -456,7 +458,7 @@ class SalesAgent:
             for attempt in range(3):
                 try:
                     response = await self._client.chat.completions.create(
-                        model=GROQ_MODEL,
+                        model=self._active_model,
                         messages=working,
                         tools=_TOOLS,
                         tool_choice="auto",
@@ -468,9 +470,21 @@ class SalesAgent:
                 except Exception as exc:
                     last_err = exc
                     err_str = str(exc).lower()
+                    # Rate limit → switch to fallback model immediately
+                    if "rate_limit" in err_str or "rate limit" in err_str:
+                        if self._active_model != GROQ_MODEL_FALLBACK:
+                            logger.warning(
+                                "Rate limit on %s → switching to fallback %s",
+                                self._active_model, GROQ_MODEL_FALLBACK,
+                            )
+                            self._active_model = GROQ_MODEL_FALLBACK
+                        else:
+                            logger.error("Rate limit on fallback model too: %s", exc)
+                            await asyncio.sleep(5)
+                        continue
                     if any(k in err_str for k in (
                         "failed_generation", "service_unavailable",
-                        "rate_limit", "timeout", "overloaded",
+                        "timeout", "overloaded",
                     )):
                         logger.warning("Groq transient error (attempt %d/3): %s", attempt + 1, exc)
                         await asyncio.sleep(2 ** attempt)
@@ -482,7 +496,7 @@ class SalesAgent:
                 logger.error("Groq error after 3 attempts: %s", last_err)
                 try:
                     fallback = await self._client.chat.completions.create(
-                        model=GROQ_MODEL,
+                        model=self._active_model,
                         messages=working,
                         max_tokens=512,
                         temperature=0.3,
