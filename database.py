@@ -9,7 +9,7 @@ from typing import Optional
 
 import aiosqlite
 
-from config import DATABASE_PATH, MAX_HISTORY_MESSAGES, PRODUCTS_FILE
+from config import DATABASE_PATH, MAX_HISTORY_MESSAGES, MAX_HISTORY_MESSAGES_DB, PRODUCTS_FILE
 
 logger = logging.getLogger(__name__)
 
@@ -66,9 +66,9 @@ async def get_conversation_history(chat_id: int) -> list:
 async def save_conversation_history(
     chat_id: int, history: list, client_name: Optional[str] = None
 ) -> None:
-    # Trim to last N messages
-    if len(history) > MAX_HISTORY_MESSAGES:
-        history = history[-MAX_HISTORY_MESSAGES:]
+    # Store more history in DB than we send to LLM
+    if len(history) > MAX_HISTORY_MESSAGES_DB:
+        history = history[-MAX_HISTORY_MESSAGES_DB:]
 
     now = datetime.now().isoformat()
     async with aiosqlite.connect(DATABASE_PATH) as db:
@@ -144,7 +144,14 @@ async def get_order(order_id: str) -> Optional[dict]:
             return dict(row) if row else None
 
 
+_ALLOWED_ORDER_COLS = {
+    "status", "notes", "supplier_notified", "supplier_confirmed",
+}
+
 async def update_order(order_id: str, updates: dict) -> None:
+    invalid = set(updates.keys()) - _ALLOWED_ORDER_COLS
+    if invalid:
+        raise ValueError(f"Недопустимые поля для обновления: {invalid}")
     updates["updated_at"] = datetime.now().isoformat()
     set_clause = ", ".join(f"{k} = ?" for k in updates)
     values = list(updates.values()) + [order_id]

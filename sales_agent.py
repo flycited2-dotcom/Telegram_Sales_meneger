@@ -23,10 +23,12 @@ from config import (
     GROQ_MODEL,
     GROQ_MODEL_FALLBACK,
     MANAGER_NAME,
+    MAX_HISTORY_MESSAGES,
     SMTP_HOST,
     SMTP_PASSWORD,
     SMTP_PORT,
     SMTP_USER,
+    STATUS_LABELS,
     SUPPLIER_EMAIL,
     SUPPLIER_TELEGRAM_CHAT_ID,
 )
@@ -59,19 +61,32 @@ _STOP = {
     "под","над","без","со","но","так","не","у","а","к","ко",
 }
 
-# ─── System prompt (keep it SHORT — every token costs) ────────────────────────
+# ─── System prompt ────────────────────────────────────────────────────────────
 
-_SYSTEM_PROMPT = (
-    "Ты — {name}, менеджер по продажам компании «{company}». "
-    "Живой человек, не бот. Отвечай коротко — 2-3 предложения максимум.\n\n"
-    "ПРАВИЛА:\n"
-    "• Цены и наличие — ТОЛЬКО из раздела [КАТАЛОГ] в сообщении. "
-    "Никогда не придумывай цены самостоятельно.\n"
-    "• Если [КАТАЛОГ] пуст или товара нет — скажи «уточню у поставщика».\n"
-    "• При оформлении заказа: сначала узнай имя и телефон, "
-    "затем вызови create_order, затем notify_supplier.\n"
-    "• Обращайся на «Вы», тон тёплый и деловой."
-)
+_SYSTEM_PROMPT = """\
+Ты — {name}, менеджер по продажам компании «{company}».
+Ты живой человек — клиент не должен чувствовать, что говорит с ботом.
+
+ХАРАКТЕР И СТИЛЬ:
+• Общайся тепло и естественно — как опытный менеджер, которому не всё равно
+• Задавай уточняющие вопросы когда нужно понять задачу клиента
+• Не начинай фразы с "Конечно!", "Отлично!", "Разумеется!" — это звучит шаблонно
+• Используй живые переходы: "Смотрите...", "Тут такой момент...", "Как раз есть..."
+• Если клиент шутит или пишет неформально — можно ответить легко
+• Обращайся на «Вы», но без официоза — по-деловому и с теплотой
+
+ДЛИНА ОТВЕТОВ:
+• Простой вопрос → 2-3 предложения
+• Сравнение товаров, подбор → столько, сколько нужно для ясности
+• Не перечисляй всё подряд — вычли главное под запрос клиента
+
+ПРАВИЛА (строго):
+• Цены и наличие — ТОЛЬКО из раздела [КАТАЛОГ] в сообщении пользователя
+• Никогда не придумывай цены, характеристики или сроки самостоятельно
+• Если товара нет в каталоге — скажи что уточнишь у поставщика лично
+• При оформлении заказа: сначала узнай имя и номер телефона клиента,
+  потом вызови create_order, потом notify_supplier — оба вызова обязательны\
+"""
 
 # ─── Tools (only DB/network operations — product search done via RAG) ─────────
 
@@ -297,9 +312,11 @@ class SalesAgent:
         user_content = f"{text}\n\n{catalog_block}"
 
         history.append({"role": "user", "content": user_content})
-        reply = await self._run_loop(history, context_chat_id=chat_id)
+        # Trim to MAX_HISTORY_MESSAGES for LLM (DB stores more for future context)
+        llm_history = history[-MAX_HISTORY_MESSAGES:] if len(history) > MAX_HISTORY_MESSAGES else history
+        reply = await self._run_loop(llm_history, context_chat_id=chat_id)
 
-        # Save clean history (without injected catalog) to keep tokens low
+        # Save clean history (without injected catalog) — DB stores full history
         history[-1] = {"role": "user", "content": text}
         history.append({"role": "assistant", "content": reply})
         await save_conversation_history(chat_id, history, user_name)
@@ -341,8 +358,8 @@ class SalesAgent:
                         messages=working,
                         tools=_TOOLS,
                         tool_choice="auto",
-                        max_tokens=350,
-                        temperature=0.2,
+                        max_tokens=512,   # 350→512: даёт полные ответы без обрезки
+                        temperature=0.4,  # 0.2→0.4: живее, меньше шаблонности
                     )
                     last_err = None
                     break
@@ -429,6 +446,14 @@ class SalesAgent:
     # ── Tool implementations ───────────────────────────────────────────────────
 
     async def _create_order(self, inp: dict, default_chat_id: int) -> str:
+        quantity = inp.get("quantity", 0)
+        unit_price = inp.get("unit_price", 0)
+        if not isinstance(quantity, int) or quantity <= 0:
+            return "Ошибка: количество должно быть целым числом больше нуля."
+        if not isinstance(unit_price, (int, float)) or unit_price <= 0:
+            return "Ошибка: цена должна быть положительным числом."
+        if not inp.get("product_name", "").strip():
+            return "Ошибка: не указан товар."
         order_id = await db_create_order({
             "client_chat_id": inp.get("client_chat_id", default_chat_id),
             "client_name":    inp.get("client_name", ""),
@@ -484,17 +509,11 @@ class SalesAgent:
         order = await get_order(order_id)
         if not order:
             return f"Заказ {order_id} не найден."
-        labels = {
-            "new": "🆕 Новый", "confirmed": "✅ Подтверждён",
-            "in_stock": "📦 В наличии", "reserved": "🔒 Зарезервирован",
-            "shipped": "🚚 Отправлен", "completed": "✔️ Завершён",
-            "cancelled": "❌ Отменён",
-        }
         return (
             f"Заказ {order['id']}\n"
             f"Товар: {order['product_name']} × {order['quantity']}\n"
             f"Сумма: {order['total_price']:,.0f} ₽\n"
-            f"Статус: {labels.get(order['status'], order['status'])}\n"
+            f"Статус: {STATUS_LABELS.get(order['status'], order['status'])}\n"
             f"Создан: {order['created_at'][:10]}"
         )
 

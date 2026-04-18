@@ -1,7 +1,7 @@
 # Telegram Sales Agent 🤖
 
 Умный Telegram-бот, который ведёт себя как настоящий менеджер по продажам.  
-Построен на **Claude Opus 4.6** (Anthropic) + **python-telegram-bot**.
+Построен на **Groq Llama 3.3-70B** (бесплатный tier) + **python-telegram-bot**.
 
 ---
 
@@ -26,7 +26,7 @@ pip install -r requirements.txt
 
 # 2. Создать файл .env
 cp .env.example .env
-# заполни TELEGRAM_BOT_TOKEN, ANTHROPIC_API_KEY, SUPPLIER_TELEGRAM_CHAT_ID
+# заполни TELEGRAM_BOT_TOKEN, GROQ_API_KEY, SUPPLIER_TELEGRAM_CHAT_ID
 
 # 3. Запустить
 python main.py
@@ -38,7 +38,7 @@ python main.py
 
 ```env
 TELEGRAM_BOT_TOKEN=...        # токен бота от @BotFather
-ANTHROPIC_API_KEY=...         # ключ Anthropic
+GROQ_API_KEY=...              # бесплатный ключ: https://console.groq.com
 
 SUPPLIER_TELEGRAM_CHAT_ID=... # chat_id поставщика (узнай через @userinfobot)
 SUPPLIER_EMAIL=...            # email поставщика (резервный канал)

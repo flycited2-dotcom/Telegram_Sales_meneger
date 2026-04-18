@@ -25,7 +25,7 @@ from telegram.ext import (
     filters,
 )
 
-from config import COMPANY_NAME, GROQ_API_KEY, MANAGER_NAME, SUPPLIER_TELEGRAM_CHAT_ID, TELEGRAM_BOT_TOKEN
+from config import COMPANY_NAME, GROQ_API_KEY, MANAGER_NAME, STATUS_LABELS, SUPPLIER_TELEGRAM_CHAT_ID, TELEGRAM_BOT_TOKEN
 from database import get_client_orders, init_db
 from sales_agent import SalesAgent
 
@@ -75,17 +75,8 @@ async def cmd_orders(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         return
 
     lines = ["📋 *Ваши активные заказы:*\n"]
-    status_labels = {
-        "new": "🆕 Новый",
-        "confirmed": "✅ Подтверждён",
-        "in_stock": "📦 Есть у поставщика",
-        "reserved": "🔒 Зарезервирован",
-        "shipped": "🚚 Отправлен",
-        "completed": "✔️ Завершён",
-        "cancelled": "❌ Отменён",
-    }
     for o in orders:
-        status = status_labels.get(o["status"], o["status"])
+        status = STATUS_LABELS.get(o["status"], o["status"])
         lines.append(
             f"*{o['id']}*\n"
             f"  {o['product_name']} × {o['quantity']} = {o['total_price']:,.0f} ₽\n"
