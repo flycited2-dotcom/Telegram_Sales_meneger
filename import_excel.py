@@ -113,42 +113,37 @@ def parse_discounts(raw: str) -> dict:
 PRICES_DIR = Path(__file__).parent / "prices"
 
 
-def _pick_file_from_prices_dir() -> Path:
-    """Если файл не указан — показываем что лежит в папке prices/."""
-    files = sorted(
+def _list_price_files() -> list:
+    """Вернуть все прайс-файлы из папки prices/."""
+    if not PRICES_DIR.exists():
+        return []
+    return sorted(
         f for f in PRICES_DIR.iterdir()
         if f.suffix.lower() in (".xlsx", ".xls", ".csv")
     )
+
+
+def _pick_files_from_prices_dir() -> list:
+    """Если файл не указан — показываем что лежит в папке prices/ и спрашиваем."""
+    files = _list_price_files()
     if not files:
-        print(f"❌ Папка prices/ пуста. Положите туда Excel или CSV файл и повторите.")
+        print("❌ Папка prices/ пуста. Положите туда Excel или CSV файл и повторите.")
         sys.exit(1)
     if len(files) == 1:
         print(f"📂 Найден файл: {files[0].name}")
-        return files[0]
-    print("Файлы в папке prices/:")
+        return files
+    print(f"\nФайлы в папке prices/ ({len(files)} шт.):")
     for i, f in enumerate(files, 1):
         print(f"  {i}. {f.name}")
-    raw = input("Выберите номер файла [1]: ").strip() or "1"
-    return files[int(raw) - 1]
+    ans = input("Обработать все файлы? [y/n, default=y]: ").strip().lower()
+    if ans in ("", "y", "yes", "д", "да"):
+        return files
+    raw = input("Выберите номер одного файла [1]: ").strip() or "1"
+    return [files[int(raw) - 1]]
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Импорт прайса в products.json")
-    parser.add_argument("file", nargs="?", default=None, help="Путь к Excel или CSV файлу (если не указан — ищет в папке prices/)")
-    parser.add_argument("--sheet", default=None, help="Номер или имя листа (по умолчанию — первый)")
-    parser.add_argument("--stock", type=int, default=0, help="Остаток по умолчанию (если нет в файле)")
-    parser.add_argument("--discount", default="", help="Скидки: 5+=5,20+=10")
-    args = parser.parse_args()
-
-    if args.file:
-        path = Path(args.file)
-        if not path.exists():
-            print(f"❌ Файл не найден: {path}")
-            sys.exit(1)
-    else:
-        path = _pick_file_from_prices_dir()
-
-    default_discounts = parse_discounts(args.discount) if args.discount else {}
+def _parse_file(path: Path, sheet_arg, stock_default: int, default_discounts: dict, idx_start: int = 1) -> tuple:
+    """Разобрать один прайс-файл. Возвращает (products, skipped)."""
 
     # ── Читаем файл ───────────────────────────────────────────────────────────
     print(f"\n📂 Открываю: {path}")
@@ -157,8 +152,8 @@ def main():
         xl = pd.ExcelFile(path)
         sheets = xl.sheet_names
 
-        if args.sheet is not None:
-            sheet = sheets[int(args.sheet)] if str(args.sheet).isdigit() else args.sheet
+        if sheet_arg is not None:
+            sheet = sheets[int(sheet_arg)] if str(sheet_arg).isdigit() else sheet_arg
         elif len(sheets) > 1:
             print("Листы в файле:")
             for i, s in enumerate(sheets):
@@ -287,7 +282,7 @@ def main():
                 sku = ""
 
         # Остаток
-        stock = args.stock
+        stock = stock_default
         if col_stock:
             stock = _clean_int(row_dict.get(col_stock), default=args.stock)
 
@@ -306,7 +301,7 @@ def main():
                 description = ""
 
         products.append({
-            "id": _make_id(sku, full_name, idx),
+            "id": _make_id(sku, full_name, idx_start + idx - 1),
             "name": full_name,
             "description": description,
             "price": round(price, 2),
@@ -318,17 +313,72 @@ def main():
         })
         idx += 1
 
+    print(f"   Итог: {len(products)} товаров, пропущено: {skipped}")
+    return products, skipped
+
+
+def _merge(all_products: list) -> list:
+    """Убрать дубли: приоритет у первого вхождения. Ключ — артикул или название."""
+    seen: set = set()
+    result = []
+    for p in all_products:
+        key = p["supplier_sku"].strip() if p["supplier_sku"].strip() else p["name"].lower().strip()
+        if key not in seen:
+            seen.add(key)
+            result.append(p)
+    return result
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Импорт прайса в products.json")
+    parser.add_argument("file", nargs="?", default=None, help="Путь к файлу (если не указан — ищет в prices/)")
+    parser.add_argument("--sheet", default=None, help="Номер или имя листа")
+    parser.add_argument("--stock", type=int, default=0, help="Остаток по умолчанию")
+    parser.add_argument("--discount", default="", help="Скидки: 5+=5,20+=10")
+    args = parser.parse_args()
+
+    default_discounts = parse_discounts(args.discount) if args.discount else {}
+
+    # ── Выбираем файлы ────────────────────────────────────────────────────────
+    if args.file:
+        path = Path(args.file)
+        if not path.exists():
+            print(f"❌ Файл не найден: {path}")
+            sys.exit(1)
+        files = [path]
+    else:
+        files = _pick_files_from_prices_dir()
+
+    # ── Парсим все файлы ──────────────────────────────────────────────────────
+    all_products: list = []
+    total_skipped = 0
+    idx_start = 1
+
+    for path in files:
+        products, skipped = _parse_file(path, args.sheet, args.stock, default_discounts, idx_start)
+        all_products.extend(products)
+        total_skipped += skipped
+        idx_start += len(products)
+
+    # ── Мерж и дедупликация ───────────────────────────────────────────────────
+    merged = _merge(all_products)
+    dupes = len(all_products) - len(merged)
+
     # ── Превью ────────────────────────────────────────────────────────────────
     print(f"\n{'─'*60}")
-    print(f"Готово к импорту: {len(products)} товаров, пропущено: {skipped}")
-    print(f"{'─'*60}")
+    print(f"Итого из {len(files)} файл(ов): {len(merged)} товаров", end="")
+    if dupes:
+        print(f" (убрано дублей: {dupes})", end="")
+    if total_skipped:
+        print(f", пропущено строк: {total_skipped}", end="")
+    print(f"\n{'─'*60}")
     print("Первые 5 позиций:")
-    for p in products[:5]:
+    for p in merged[:5]:
         print(f"  [{p['category']}] {p['name'][:50]:50s} {p['price']:>10,.0f} ₽  арт:{p['supplier_sku']}")
     print(f"{'─'*60}")
 
-    if not products:
-        print("❌ Ни одного товара не распознано. Проверь файл.")
+    if not merged:
+        print("❌ Ни одного товара не распознано. Проверь файлы.")
         sys.exit(1)
 
     # ── Сохраняем ─────────────────────────────────────────────────────────────
@@ -343,11 +393,10 @@ def main():
             sys.exit(0)
 
     with open(out_path, "w", encoding="utf-8") as f:
-        json.dump({"products": products}, f, ensure_ascii=False, indent=2)
+        json.dump({"products": merged}, f, ensure_ascii=False, indent=2)
 
-    print(f"\n✅ Сохранено: {out_path}")
-    print(f"   Товаров: {len(products)}")
-    print(f"\nЗапускай бота: py main.py")
+    print(f"\n✅ Сохранено: {out_path}  ({len(merged)} товаров)")
+    print(f"\nНапиши боту /reload — каталог обновится без перезапуска.")
 
 
 if __name__ == "__main__":
