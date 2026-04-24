@@ -110,18 +110,43 @@ def parse_discounts(raw: str) -> dict:
     return result
 
 
+PRICES_DIR = Path(__file__).parent / "prices"
+
+
+def _pick_file_from_prices_dir() -> Path:
+    """Если файл не указан — показываем что лежит в папке prices/."""
+    files = sorted(
+        f for f in PRICES_DIR.iterdir()
+        if f.suffix.lower() in (".xlsx", ".xls", ".csv")
+    )
+    if not files:
+        print(f"❌ Папка prices/ пуста. Положите туда Excel или CSV файл и повторите.")
+        sys.exit(1)
+    if len(files) == 1:
+        print(f"📂 Найден файл: {files[0].name}")
+        return files[0]
+    print("Файлы в папке prices/:")
+    for i, f in enumerate(files, 1):
+        print(f"  {i}. {f.name}")
+    raw = input("Выберите номер файла [1]: ").strip() or "1"
+    return files[int(raw) - 1]
+
+
 def main():
     parser = argparse.ArgumentParser(description="Импорт прайса в products.json")
-    parser.add_argument("file", help="Путь к Excel или CSV файлу")
+    parser.add_argument("file", nargs="?", default=None, help="Путь к Excel или CSV файлу (если не указан — ищет в папке prices/)")
     parser.add_argument("--sheet", default=None, help="Номер или имя листа (по умолчанию — первый)")
     parser.add_argument("--stock", type=int, default=0, help="Остаток по умолчанию (если нет в файле)")
     parser.add_argument("--discount", default="", help="Скидки: 5+=5,20+=10")
     args = parser.parse_args()
 
-    path = Path(args.file)
-    if not path.exists():
-        print(f"❌ Файл не найден: {path}")
-        sys.exit(1)
+    if args.file:
+        path = Path(args.file)
+        if not path.exists():
+            print(f"❌ Файл не найден: {path}")
+            sys.exit(1)
+    else:
+        path = _pick_file_from_prices_dir()
 
     default_discounts = parse_discounts(args.discount) if args.discount else {}
 
