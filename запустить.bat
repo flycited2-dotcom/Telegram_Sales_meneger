@@ -1,33 +1,30 @@
 @echo off
-chcp 65001 >nul
 echo.
-echo  ╔══════════════════════════════════════╗
-echo  ║   Обновление каталога бота           ║
-echo  ╚══════════════════════════════════════╝
+echo  === Obnovlenie kataloga bota ===
 echo.
-echo  Шаг 1: Положите Excel/CSV файлы в папку prices\
-echo  Шаг 2: Нажмите любую клавишу для запуска
+echo  Polozhite Excel/CSV fajly v papku prices\
+echo  Nazhite lyubuyu klavishu dlya zapuska...
 echo.
 pause >nul
 
 echo.
-echo  [1/2] Импортирую прайс...
-echo  ─────────────────────────────────────────
+echo  [1/2] Import prajs-fajlov...
+echo  --------------------------------
 python import_excel.py
 if errorlevel 1 (
     echo.
-    echo  ❌ Импорт завершился с ошибкой. Деплой отменён.
+    echo  OSHIBKA: Import ne udalsya. Deplo otmenyon.
     pause
     exit /b 1
 )
 
 echo.
-echo  [2/2] Заливаю каталог на сервер и перезапускаю бота...
-echo  ─────────────────────────────────────────
+echo  [2/2] Zagruzka kataloga na server...
+echo  --------------------------------
 python deploy_catalog.py
 if errorlevel 1 (
     echo.
-    echo  ❌ Деплой не удался. Проверьте VPS_HOST/VPS_PASSWORD в .env
+    echo  OSHIBKA: Deplo ne udalsya.
     pause
     exit /b 1
 )
