@@ -3,8 +3,22 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
+def _parse_int_set(raw: str) -> set[int]:
+    result: set[int] = set()
+    for chunk in (raw or "").split(","):
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        try:
+            result.add(int(chunk))
+        except ValueError:
+            continue
+    return result
+
 # Telegram
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+ADMIN_CHAT_IDS = _parse_int_set(os.getenv("ADMIN_CHAT_IDS", ""))
 
 # Groq (FREE — get key at https://console.groq.com, no credit card needed)
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")

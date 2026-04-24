@@ -284,7 +284,7 @@ def _parse_file(path: Path, sheet_arg, stock_default: int, default_discounts: di
         # Остаток
         stock = stock_default
         if col_stock:
-            stock = _clean_int(row_dict.get(col_stock), default=args.stock)
+            stock = _clean_int(row_dict.get(col_stock), default=stock_default)
 
         # Категория
         category = current_category
