@@ -122,19 +122,32 @@ _SYNONYMS = {
 # ─── System prompt ────────────────────────────────────────────────────────────
 
 _SYSTEM_PROMPT = """\
-Ты — {name}, менеджер по продажам «{company}». Пишешь как живой человек — коротко, без официоза. Не раскрывай, что ты ИИ.
+Ты — {name}, менеджер интернет-магазина «{company}». Общаешься как живой человек — просто, без официоза, коротко. Не раскрывай, что ты ИИ.
 
-Главное правило: цены, наименования и наличие — только из блока [КАТАЛОГ] в каждом сообщении. Никогда ничего не придумывай.
+ОТКУДА БРАТЬ ДАННЫЕ
+Цены, названия и наличие — исключительно из блока [КАТАЛОГ] текущего сообщения. Никогда ничего не придумывай. Если [КАТАЛОГ] пуст или не по теме — скажи «уточню у поставщика».
 
-Если клиент спрашивает о товаре и [КАТАЛОГ] содержит подходящее — покажи до 3 позиций. Каждая с новой строки: Название — цена. После списка задай один короткий уточняющий вопрос.
+КАК ОТВЕЧАТЬ
+— Приветствие клиента («Привет», «Здравствуйте», «Добрый день») → поздоровайся в ответ и спроси одной фразой: что подобрать?
+— Расплывчатый запрос без конкретного товара → задай один вопрос: что именно интересует?
+— Конкретный запрос и есть товары в [КАТАЛОГ] → покажи до 3 вариантов, каждый с новой строки: Название — цена. Потом один короткий вопрос.
+— Клиент спрашивает о конкретном товаре из уже показанного → ответь на вопрос, не повторяй весь список.
+— «Беру», «оформи», «заказываю», «возьму» → спроси имя и телефон. После — create_order, notify_supplier.
 
-Если товара нет в [КАТАЛОГ] или каталог пуст — скажи коротко, что уточнишь у поставщика. Не придумывай замену.
+ФОРМАТ
+Никакого markdown. Никакой нумерации. Никаких тире в начале строк. Один вопрос за раз. Фразы типа «Например, вы ищете...» — никогда. Не начинай с «Конечно», «Отлично», «Рад помочь».
 
-Если клиент отвечает на вопрос или задаёт свой — отвечай на него. Не повторяй список.
+ПРИМЕР — запрос кондиционера:
+Клиент: кондер нужен
+Ты: На какую площадь? (комнату в кв. м)
 
-Когда клиент явно говорит "беру", "оформи", "заказываю", "возьму" — спроси имя и телефон. После получения — вызови create_order, потом notify_supplier.
-
-Запрещено: markdown, нумерация, тире в начале строки, скидки, фразы "рад помочь" / "конечно" / "отлично" / "согласно вашему запросу". Не задавай больше одного вопроса за раз.\
+ПРИМЕР — конкретный запрос:
+Клиент: холодильник до 30 тысяч
+Ты: Вот что есть в наличии:
+Beko RCSK270M20W — 22 490₽
+Indesit ITS 4180 W — 25 900₽
+Hotpoint HT 4180 M — 28 700₽
+Какой больше нравится?\
 """
 
 # ─── Tools (only DB/network operations — product search done via RAG) ─────────
@@ -301,8 +314,8 @@ class SalesAgent:
             tokens.append(_SYNONYMS.get(w, w))
 
         if not tokens:
-            # No searchable keywords — just show categories
-            return self._catalog_categories(products)
+            # Smalltalk / greeting — don't flood model with categories
+            return "[КАТАЛОГ: нет запроса товара — просто поговори с клиентом]"
 
         # Score each product — min score 2 prevents false positives on large catalogs
         MIN_SCORE = 2
@@ -321,7 +334,8 @@ class SalesAgent:
                 scored.append((score, p))
 
         if not scored:
-            return self._catalog_categories(products)
+            # Nothing found — tell model to ask for clarification or check with supplier
+            return "[КАТАЛОГ: по запросу ничего не найдено — предложи уточнить или скажи что уточнишь у поставщика]"
 
         scored.sort(key=lambda x: (-x[0], x[1]["price"]))
         top = [p for _, p in scored[:6]]
@@ -329,21 +343,8 @@ class SalesAgent:
         lines = [f"[КАТАЛОГ: {len(scored)} найдено, показано {len(top)}]"]
         for p in top:
             stock = f"{p['stock']}шт" if p.get("stock", 0) > 0 else "под заказ"
-            # Truncate long product names to keep context compact
             name = p['name'][:60] + "…" if len(p['name']) > 60 else p['name']
             lines.append(f"• {name} — {p['price']:.0f}₽ | {stock}")
-        return "\n".join(lines)
-
-    @staticmethod
-    def _catalog_categories(products: list) -> str:
-        """Return compact category list when no products match."""
-        cats: dict[str, int] = {}
-        for p in products:
-            cat = p.get("category") or "Разное"
-            cats[cat] = cats.get(cat, 0) + 1
-        lines = [f"[КАТАЛОГ: {len(products)} товаров, категории:]"]
-        for cat, cnt in sorted(cats.items()):
-            lines.append(f"• {cat} ({cnt} позиций)")
         return "\n".join(lines)
 
     # ── Main entry points ──────────────────────────────────────────────────────
@@ -405,7 +406,7 @@ class SalesAgent:
                         tools=_TOOLS,
                         tool_choice="auto",
                         max_tokens=512,
-                        temperature=0.2,  # низкая — меньше галлюцинаций
+                        temperature=0.35,  # баланс: живость без галлюцинаций
                     )
                     last_err = None
                     break
