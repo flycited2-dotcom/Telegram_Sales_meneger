@@ -19,6 +19,7 @@ from catalog import (
     price_for_quantity,
     render_catalog_context,
     resolve_catalog_product,
+    search_alternatives,
     search_products,
 )
 from config import (
@@ -236,19 +237,19 @@ class SalesAgent:
         preferred_ids = lead.get("interested_product_ids", []) if lead else []
         context_products = get_products_by_ids(preferred_ids)
 
-        smalltalk_reply = build_smalltalk_reply(text, has_context=bool(context_products))
-        if smalltalk_reply:
-            history.append({"role": "user", "content": text})
-            history.append({"role": "assistant", "content": smalltalk_reply})
-            await save_conversation_history(chat_id, history, user_name)
-            return smalltalk_reply
-
         selection_reply = build_selection_reply(text, context_products)
         if selection_reply:
             history.append({"role": "user", "content": text})
             history.append({"role": "assistant", "content": selection_reply})
             await save_conversation_history(chat_id, history, user_name)
             return selection_reply
+
+        smalltalk_reply = build_smalltalk_reply(text, has_context=bool(context_products))
+        if smalltalk_reply:
+            history.append({"role": "user", "content": text})
+            history.append({"role": "assistant", "content": smalltalk_reply})
+            await save_conversation_history(chat_id, history, user_name)
+            return smalltalk_reply
 
         catalog_context, matches = render_catalog_context(text, preferred_product_ids=preferred_ids)
         sales_context = await self._sales_context(chat_id, text, catalog_context, matches)
@@ -270,6 +271,8 @@ class SalesAgent:
         alternatives = []
         if not matches and is_price_query(text):
             alternatives = search_products(text, limit=3, preferred_product_ids=preferred_ids, ignore_price=True)
+        if not matches and not alternatives:
+            alternatives = search_alternatives(text, limit=3)
         no_match_reply = build_no_match_reply(text, had_context=bool(context_products), alternatives=alternatives)
         if no_match_reply and not matches:
             logger.info("No-match catalog reply | chat_id=%s | had_context=%s", chat_id, bool(context_products))

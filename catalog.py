@@ -11,6 +11,8 @@ _STOP = {
     "нужен", "нужна", "нужно", "нужны", "хочу", "хотим", "хотите", "дайте", "покажи",
     "покажите", "расскажи", "расскажите", "купить", "куплю", "заказать", "подберите",
     "подбери", "помогите", "помоги", "ищу", "найдите", "интересует", "интересуют",
+    "продаете", "продаёте", "продается", "продаётся", "поодаете", "скинь", "скиень",
+    "вариант", "варианты",
     "скажи", "скажите", "могу", "можно", "можете", "привезете", "доставка", "есть",
     "ли", "что", "как", "где", "какой", "какая", "какие", "каких", "чего", "кому",
     "зачем", "почему", "когда", "куда", "откуда", "это", "этот", "эта", "эти",
@@ -28,12 +30,14 @@ _STOP = {
     "обе", "несколько", "пару", "любой", "которая", "который", "которое", "которые",
     "такой", "такая", "такие", "последний", "очень", "более", "менее", "лучше",
     "хуже", "больше", "меньше", "также", "тоже", "еще", "просто", "только", "уже",
-    "самое",
+    "самое", "кв", "квадрат", "квадрата", "квадратов", "метр", "метра", "метров",
+    "м2", "м²", "кг", "килограмм", "килограмма", "килограммов",
 }
 
 _SELECTION_WORDS = {
     "беру", "возьму", "оформляй", "оформить", "первый", "второй", "третий",
-    "эту", "этот", "эти", "его", "ее", "их",
+    "последний", "последняя", "последнюю", "эту", "этот", "эти", "его", "ее", "их",
+    "заказ", "позиция", "позицию", "списка", "ставь",
 }
 
 _PRICE_QUERY_WORDS = {
@@ -45,16 +49,19 @@ _GREETING_WORDS = {"привет", "здравствуйте", "добрый", "
 _META_WORDS = {
     "супер", "класс", "ок", "окей", "понял", "понятно", "ясно", "ага", "угу",
     "опять", "бред", "поплыл", "стоп", "хватит", "зачем", "прислал", "шлешь",
+    "слышишь",
 }
-_COMPLAINT_PHRASES = {"не просил", "не спрашивал", "что ты мне шлешь", "ты поплыл"}
+_COMPLAINT_PHRASES = {"не просил", "не спрашивал", "что ты мне шлешь", "ты поплыл", "не слышишь"}
 _REQUIRED_TOKENS = {"инвертор", "сух", "тен"}
-_APPLIANCE_TOKENS = {
+_PRODUCT_TOKENS = {
     "кондиционер", "водонагреватель", "микроволновая", "стиральная",
     "холодильник", "телевизор", "посудомоечная", "морозильная",
+    "вытяжка", "генератор",
 }
 _ACCESSORY_WORDS = {
     "кронштейн", "ножи", "фильтр", "пульт", "шланг", "кабель", "насадка",
     "форма", "труба", "подставка", "держатель", "крепление",
+    "автомат", "автопуска", "блок",
 }
 
 _ORDINAL_MAP = {
@@ -77,13 +84,16 @@ _SYNONYMS = {
     "кондеры": "кондиционер",
     "кондёр": "кондиционер",
     "кондёры": "кондиционер",
+    "кондиционеры": "кондиционер",
     "сплит": "кондиционер",
     "сплиты": "кондиционер",
     "стиралка": "стиральная",
     "стиралки": "стиральная",
+    "стиральные": "стиральная",
     "холодос": "холодильник",
     "бойлер": "водонагреватель",
     "бойлеры": "водонагреватель",
+    "водонагреватели": "водонагреватель",
     "сухим": "сух",
     "сухой": "сух",
     "сухого": "сух",
@@ -94,6 +104,13 @@ _SYNONYMS = {
     "инвертор": "инвертор",
     "инверторный": "инвертор",
     "инверторная": "инвертор",
+    "инверторные": "инвертор",
+    "генераторы": "генератор",
+    "генератор": "генератор",
+    "вытяжки": "вытяжка",
+    "вытяжка": "вытяжка",
+    "купольная": "вытяжка",
+    "купольные": "вытяжка",
     "телик": "телевизор",
     "телики": "телевизор",
     "ноут": "ноутбук",
@@ -178,6 +195,23 @@ def _tokenize(text: str) -> list[str]:
         if token and token not in _STOP:
             tokens.append(token)
     return tokens
+
+
+def _raw_tokens(text: str) -> set[str]:
+    return set(re.findall(r"[a-zа-яё0-9]+", text.lower()))
+
+
+def _search_tokens(text: str) -> set[str]:
+    return set(_tokenize(text)) | _raw_tokens(text)
+
+
+def _token_matches(token: str, text: str, tokens: set[str]) -> bool:
+    if token in tokens:
+        return True
+    # Latin brand names must match as words. This prevents Gree from matching "green".
+    if re.fullmatch(r"[a-z0-9]+", token):
+        return False
+    return token in text
 
 
 def is_selection_message(text: str) -> bool:
@@ -270,7 +304,7 @@ def search_products(
     text_tokens = [token for token in tokens if not token.isdigit()]
     number_tokens = [token for token in tokens if token.isdigit()]
     preferred_ids = {str(product_id).strip().lower() for product_id in (preferred_product_ids or [])}
-    use_context_only = bool(preferred_ids and has_budget and not text_tokens and not number_tokens)
+    use_context_only = bool(preferred_ids and not text_tokens and (has_budget or number_tokens))
     if use_context_only:
         preferred = get_products_by_ids(preferred_product_ids or [])
         if preferred:
@@ -293,25 +327,46 @@ def search_products(
         desc_l = _normalize_text(product.get("description", ""))
         sku_l = _normalize_text(product.get("supplier_sku", ""))
         full = f"{name_l} {cat_l} {desc_l} {sku_l}"
-        full_search = f"{full} {' '.join(_tokenize(full))}"
+        name_tokens = _search_tokens(name_l)
+        cat_tokens = _search_tokens(cat_l)
+        desc_tokens = _search_tokens(desc_l)
+        sku_tokens = _search_tokens(sku_l)
+        full_tokens = name_tokens | cat_tokens | desc_tokens | sku_tokens
+        full_search = f"{full} {' '.join(full_tokens)}"
         score = 0
 
-        if any(token in _REQUIRED_TOKENS and token not in full_search for token in text_tokens):
+        product_tokens = [token for token in text_tokens if token in _PRODUCT_TOKENS]
+        brand_tokens = [
+            token for token in text_tokens
+            if token not in _PRODUCT_TOKENS and token not in _REQUIRED_TOKENS and re.search(r"[a-z]", token)
+        ]
+        if product_tokens and any(not _token_matches(token, full_search, full_tokens) for token in product_tokens):
             continue
-        if any(token in _APPLIANCE_TOKENS for token in text_tokens):
+        if product_tokens and any(not _token_matches(token, full_search, full_tokens) for token in brand_tokens):
+            continue
+        if any(token in _REQUIRED_TOKENS and not _token_matches(token, full_search, full_tokens) for token in text_tokens):
+            continue
+        if product_tokens:
             if any(word in name_l for word in _ACCESSORY_WORDS) and not any(word in text_tokens for word in _ACCESSORY_WORDS):
                 continue
 
         if text_tokens:
             text_hits = 0
             for token in text_tokens:
-                if token in name_l:
-                    score += 5
+                if token in product_tokens and _token_matches(token, name_l, name_tokens):
+                    score += 8
                     text_hits += 1
-                elif token in cat_l:
+                elif _token_matches(token, name_l, name_tokens):
+                    score += 6 if name_l.startswith(token) else 5
+                    text_hits += 1
+                elif _token_matches(token, cat_l, cat_tokens):
                     score += 4
                     text_hits += 1
-                elif token in desc_l or token in sku_l or token in full_search:
+                elif (
+                    _token_matches(token, desc_l, desc_tokens)
+                    or _token_matches(token, sku_l, sku_tokens)
+                    or _token_matches(token, full_search, full_tokens)
+                ):
                     score += 2
                     text_hits += 1
             if text_hits == 0:
@@ -339,6 +394,17 @@ def search_products(
     scored.sort(key=lambda item: (-item[0], float(item[1]["price"])))
     results = [product for _, product in scored]
     return results[:limit] if limit else results
+
+
+def search_alternatives(query: str, limit: int = 3) -> list[dict]:
+    tokens = _tokenize(query)
+    product_tokens = []
+    for token in tokens:
+        if token in _PRODUCT_TOKENS and token not in product_tokens:
+            product_tokens.append(token)
+    if not product_tokens:
+        return []
+    return search_products(" ".join(product_tokens), limit=limit)
 
 
 def render_catalog_context(
@@ -380,9 +446,6 @@ def build_sales_listing(query: str, matches: list[dict]) -> Optional[str]:
     if is_price_query(query) and price_min is None and price_max is None:
         return "По какому бюджету показать варианты? Напишите, например: до 30000 или от 25000 до 40000."
 
-    if is_price_query(query) and not _tokenize(query):
-        return "По какому товару показать варианты в этом бюджете?"
-
     lines = [f"Подобрал варианты ({len(matches)}), все из наличия:"]
     for index, product in enumerate(matches, start=1):
         lines.append(f"{index}. {product['name']} — {float(product['price']):,.0f} ₽, {_status_label(product)}")
@@ -393,14 +456,44 @@ def build_sales_listing(query: str, matches: list[dict]) -> Optional[str]:
     return "\n".join(lines)
 
 
+def _selection_index(query: str, total: int) -> Optional[int]:
+    if total <= 0:
+        return None
+    text_l = _normalize_text(query)
+    if "последн" in text_l:
+        return total - 1
+    match = re.search(r"(?<!\d)(\d{1,2})(?!\d)", text_l)
+    if not match:
+        return None
+    index = int(match.group(1)) - 1
+    return index if 0 <= index < total else None
+
+
+def _is_bare_position_number(query: str) -> bool:
+    return bool(re.fullmatch(r"\s*(?:№|#)?\s*\d{1,2}\s*[\.)]?\s*", query))
+
+
+def _position_word(count: int) -> str:
+    if count % 10 == 1 and count % 100 != 11:
+        return "позиция"
+    if 2 <= count % 10 <= 4 and not 12 <= count % 100 <= 14:
+        return "позиции"
+    return "позиций"
+
+
 def build_no_match_reply(query: str, had_context: bool = False, alternatives: Optional[list[dict]] = None) -> Optional[str]:
     if not has_catalog_intent(query, has_context=had_context):
         return None
     if alternatives:
-        lines = ["В этом бюджете точного варианта не вижу. Ближайшие позиции в наличии:"]
+        if is_price_query(query):
+            lines = ["В этом бюджете точного варианта не вижу. Ближайшие позиции в наличии:"]
+            closing = "Если бюджет можно поднять, оформим один из этих вариантов. Если нет, посмотрю другую категорию."
+        else:
+            lines = ["Точного совпадения по запросу не вижу. Ближайшие варианты в наличии:"]
+            closing = "Если бренд или модель принципиальны, напишите это прямо, я не буду подменять товар."
         for index, product in enumerate(alternatives, start=1):
             lines.append(f"{index}. {product['name']} — {float(product['price']):,.0f} ₽, {_status_label(product)}")
-        lines.append("Если бюджет можно поднять, оформим один из этих вариантов. Если нет, посмотрю другую категорию.")
+        lines.append(closing)
         return "\n".join(lines)
     if had_context and is_price_query(query):
         return "В этом бюджете по последнему подбору подходящих позиций не вижу. Могу расширить бюджет или посмотреть соседние модели."
@@ -408,17 +501,36 @@ def build_no_match_reply(query: str, had_context: bool = False, alternatives: Op
 
 
 def build_selection_reply(query: str, context_products: list[dict]) -> Optional[str]:
-    if not is_selection_message(query) or not context_products:
+    if not context_products:
         return None
 
-    text_l = _normalize_text(query)
-    for marker, index in _ORDINAL_MAP.items():
-        if re.search(rf"(^|\s){re.escape(marker)}($|\s)", text_l) and index < len(context_products):
-            product = context_products[index]
-            return (
-                f"Принял. Можно оформить {product['name']}.\n"
-                "Напишите имя, телефон и количество."
-            )
+    selection_like = is_selection_message(query) or _is_bare_position_number(query)
+    if not selection_like:
+        return None
+
+    index = _selection_index(query, len(context_products))
+    if index is None:
+        text_l = _normalize_text(query)
+        for marker, marker_index in _ORDINAL_MAP.items():
+            if re.search(rf"(^|\s){re.escape(marker)}($|\s)", text_l) and marker_index < len(context_products):
+                index = marker_index
+                break
+
+    if index is not None:
+        product = context_products[index]
+        return (
+            f"Зафиксировал позицию {index + 1}: {product['name']}.\n"
+            "Для оформления напишите имя, телефон и количество."
+        )
+
+    match = re.search(r"(?<!\d)(\d{1,2})(?!\d)", _normalize_text(query))
+    if match:
+        requested = int(match.group(1))
+        total = len(context_products)
+        return (
+            f"В последнем списке всего {total} {_position_word(total)}, номера {requested} там нет. "
+            f"Напишите номер от 1 до {total} или модель."
+        )
 
     return "Напишите модель из последнего списка и сразу имя, телефон и количество."
 

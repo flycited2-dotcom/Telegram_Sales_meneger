@@ -7,6 +7,7 @@ from catalog import (
     price_for_quantity,
     render_catalog_context,
     resolve_catalog_product,
+    search_alternatives,
     search_products,
 )
 
@@ -78,6 +79,72 @@ CATALOG_FIXTURE = [
         "supplier_sku": "MW-BR",
         "discounts": {},
     },
+    {
+        "id": "AC-35",
+        "name": "Chigo Кондиционер 35",
+        "description": "Сплит-система на 35 м2",
+        "price": 24171.0,
+        "stock": 2,
+        "unit": "шт",
+        "category": "Кондиционеры",
+        "supplier_sku": "AC-35",
+        "discounts": {},
+    },
+    {
+        "id": "MW-35",
+        "name": "LG СВЧ печь MB63W35GIB",
+        "description": "23л",
+        "price": 13770.0,
+        "stock": 1,
+        "unit": "шт",
+        "category": "Микроволновые печи",
+        "supplier_sku": "MW-35",
+        "discounts": {},
+    },
+    {
+        "id": "GREEN-1",
+        "name": "ATLANTA Весы кухонные green",
+        "description": "",
+        "price": 730.0,
+        "stock": 1,
+        "unit": "шт",
+        "category": "Весы",
+        "supplier_sku": "GREEN",
+        "discounts": {},
+    },
+    {
+        "id": "GREE-1",
+        "name": "Gree Кондиционер 12 Pular",
+        "description": "",
+        "price": 45423.0,
+        "stock": 1,
+        "unit": "шт",
+        "category": "Кондиционеры",
+        "supplier_sku": "GREE-12",
+        "discounts": {},
+    },
+    {
+        "id": "HOOD-1",
+        "name": "Evelux Вытяжка Ulla 60 W",
+        "description": "",
+        "price": 3717.0,
+        "stock": 4,
+        "unit": "шт",
+        "category": "Вытяжки",
+        "supplier_sku": "HOOD-1",
+        "discounts": {},
+    },
+    {
+        "id": "GEFEST-PLATE",
+        "name": "GEFEST Плита газовая 3200",
+        "description": "",
+        "price": 15000.0,
+        "stock": 2,
+        "unit": "шт",
+        "category": "Плиты",
+        "supplier_sku": "GEFEST-PLATE",
+        "discounts": {},
+    },
 ]
 
 
@@ -120,6 +187,40 @@ class CatalogTests(unittest.TestCase):
         results = search_products("микроволновка до 4000")
         self.assertEqual(results[0]["id"], "MW-1")
         self.assertNotIn("MW-BRACKET", [item["id"] for item in results])
+
+    @patch("catalog.load_products", return_value=CATALOG_FIXTURE)
+    def test_numeric_context_stays_inside_previous_category(self, _mock_load):
+        results = search_products("35", preferred_product_ids=["AC-35"])
+        self.assertEqual([item["id"] for item in results], ["AC-35"])
+
+    @patch("catalog.load_products", return_value=CATALOG_FIXTURE)
+    def test_latin_brand_does_not_match_longer_words(self, _mock_load):
+        results = search_products("Gree")
+        self.assertIn("GREE-1", [item["id"] for item in results])
+        self.assertNotIn("GREEN-1", [item["id"] for item in results])
+
+    @patch("catalog.load_products", return_value=CATALOG_FIXTURE)
+    def test_alternatives_keep_requested_product_type(self, _mock_load):
+        results = search_alternatives("вытяжка gefest", limit=3)
+        self.assertIn("HOOD-1", [item["id"] for item in results])
+        self.assertNotIn("GEFEST-PLATE", [item["id"] for item in results])
+
+    def test_selection_reply_accepts_position_numbers(self):
+        reply = build_selection_reply("ставь заказ на 2 позицию из списка", CATALOG_FIXTURE[:3])
+        self.assertIn("позицию 2", reply)
+
+    def test_selection_reply_accepts_last_position(self):
+        reply = build_selection_reply("нужен последний из списка", CATALOG_FIXTURE[:3])
+        self.assertIn(CATALOG_FIXTURE[2]["name"], reply)
+
+    def test_selection_reply_rejects_out_of_range_position(self):
+        reply = build_selection_reply("11", CATALOG_FIXTURE[:3])
+        self.assertIn("3 позиции", reply)
+        self.assertIn("11", reply)
+
+    def test_selection_reply_does_not_steal_product_numbers(self):
+        reply = build_selection_reply("кондиционер на 12", CATALOG_FIXTURE)
+        self.assertIsNone(reply)
 
     def test_smalltalk_does_not_trigger_catalog(self):
         self.assertIsNotNone(build_smalltalk_reply("Привет"))

@@ -28,6 +28,7 @@ from database import (
     update_order,
 )
 from sales_agent import SalesAgent
+from training_bridge import TrainingBridge
 
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -38,6 +39,7 @@ logging.getLogger("httpcore").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 agent = SalesAgent()
+training_bridge = TrainingBridge()
 
 
 def _log_preview(text: str | None, limit: int = 300) -> str:
@@ -130,7 +132,12 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "/order <ID> — подробности и события заказа\n"
         "/ship <ID> — отметить заказ как отгруженный\n"
         "/complete <ID> — отметить заказ как завершённый\n"
-        "/cancelorder <ID> — отменить заказ вручную"
+        "/cancelorder <ID> — отменить заказ вручную\n"
+        "/train_start [topic] — запустить обучение фраз\n"
+        "/train_topics — список тем обучения\n"
+        "/train_skip — пропустить вопрос обучения\n"
+        "/train_status — статус обучения\n"
+        "/train_stop — остановить обучение"
     )
     await update.message.reply_text(text)
 
@@ -230,6 +237,41 @@ async def cmd_cancelorder(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await _set_order_status(update, context.args[0].strip().upper(), "cancelled", "cancelled_by_admin")
 
 
+async def cmd_train_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not await _admin_only(update):
+        return
+    topic = context.args[0] if context.args else "all"
+    reply = training_bridge.start(update.effective_chat.id, topic=topic)
+    await _send_long(update, reply)
+
+
+async def cmd_train_topics(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not await _admin_only(update):
+        return
+    await _send_long(update, training_bridge.topics_text())
+
+
+async def cmd_train_skip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not await _admin_only(update):
+        return
+    reply = training_bridge.skip(update.effective_chat.id)
+    await _send_long(update, reply)
+
+
+async def cmd_train_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not await _admin_only(update):
+        return
+    reply = training_bridge.status(update.effective_chat.id)
+    await _send_long(update, reply)
+
+
+async def cmd_train_stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not await _admin_only(update):
+        return
+    reply = training_bridge.stop(update.effective_chat.id)
+    await _send_long(update, reply)
+
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message or not update.message.text:
         return
@@ -248,6 +290,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if _is_supplier(chat_id):
         await _handle_supplier(update, context, text)
         return
+
+    if _is_admin(update) and training_bridge.is_active(chat_id):
+        reply = training_bridge.handle_answer(chat_id=chat_id, answer=text, user_name=user_name)
+        if reply:
+            logger.info("Training answer saved | chat_id=%s | user=%s", chat_id, user_name)
+            await _send_long(update, reply)
+            return
 
     await _safe_typing(context, chat_id)
     try:
@@ -321,6 +370,11 @@ def main() -> None:
     app.add_handler(CommandHandler("ship", cmd_ship))
     app.add_handler(CommandHandler("complete", cmd_complete))
     app.add_handler(CommandHandler("cancelorder", cmd_cancelorder))
+    app.add_handler(CommandHandler("train_start", cmd_train_start))
+    app.add_handler(CommandHandler("train_topics", cmd_train_topics))
+    app.add_handler(CommandHandler("train_skip", cmd_train_skip))
+    app.add_handler(CommandHandler("train_status", cmd_train_status))
+    app.add_handler(CommandHandler("train_stop", cmd_train_stop))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     logger.info("Polling for updates...")

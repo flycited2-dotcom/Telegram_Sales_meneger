@@ -1,6 +1,7 @@
 .env
 data/sales.db
 data/*.db
+data/training_sessions.jsonl
 *.db
 .claude/settings.local.json
 __pycache__/
