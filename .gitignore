@@ -1,0 +1,19 @@
+.env
+data/sales.db
+data/*.db
+data/training_sessions.jsonl
+*.db
+.claude/settings.local.json
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Прайсы — не хранить в репозитории
+prices/*.xlsx
+prices/*.xls
+prices/*.csv
