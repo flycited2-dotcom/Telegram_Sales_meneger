@@ -1,0 +1,121 @@
+"use client";
+
+import { Minus, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { writeCart } from "@/lib/cart-storage";
+import { formatRub } from "@/lib/format";
+import { useCart } from "@/lib/use-cart";
+
+type QuoteItem = {
+  sku: number;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+};
+
+type Quote = {
+  items: QuoteItem[];
+  total: number;
+};
+
+export function CartClient() {
+  const cart = useCart();
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!cart.length) {
+      return;
+    }
+
+    fetch("/api/cart/quote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items: cart }),
+    })
+      .then(async (response) => {
+        const json = await response.json();
+        if (!response.ok) throw new Error(json.error);
+        return json as Quote;
+      })
+      .then((nextQuote) => {
+        setQuote(nextQuote);
+        setError(null);
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "Ошибка корзины");
+        setQuote(null);
+      });
+  }, [cart]);
+
+  const quotedBySku = useMemo(() => new Map(quote?.items.map((item) => [item.sku, item]) ?? []), [quote]);
+
+  function updateQuantity(sku: number, delta: number) {
+    const next = cart
+      .map((item) => (item.sku === sku ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item))
+      .filter((item) => item.quantity > 0);
+    writeCart(next);
+  }
+
+  function removeItem(sku: number) {
+    const next = cart.filter((item) => item.sku !== sku);
+    writeCart(next);
+  }
+
+  if (!cart.length) {
+    return (
+      <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-10 text-center">
+        <h1 className="text-2xl font-black text-zinc-950">Корзина пустая</h1>
+        <p className="mt-2 text-zinc-500">Добавьте товары из каталога, затем оформите заказ.</p>
+        <Link href="/catalog" className="mt-6 inline-flex h-11 items-center rounded-lg bg-teal-700 px-5 text-sm font-semibold text-white hover:bg-teal-800">
+          В каталог
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+      <section className="rounded-lg border border-zinc-200 bg-white">
+        {cart.map((cartItem) => {
+          const item = quotedBySku.get(cartItem.sku);
+          return (
+            <div key={cartItem.sku} className="flex flex-wrap items-center gap-4 border-b border-zinc-100 p-4 last:border-b-0">
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-zinc-950">{item?.name ?? `SKU ${cartItem.sku}`}</p>
+                <p className="mt-1 text-sm text-zinc-500">SKU {cartItem.sku}</p>
+              </div>
+              <div className="flex items-center rounded-lg border border-zinc-200">
+                <button className="p-2 hover:bg-zinc-50" onClick={() => updateQuantity(cartItem.sku, -1)} aria-label="Уменьшить">
+                  <Minus className="size-4" />
+                </button>
+                <span className="w-12 text-center text-sm font-semibold">{cartItem.quantity}</span>
+                <button className="p-2 hover:bg-zinc-50" onClick={() => updateQuantity(cartItem.sku, 1)} aria-label="Увеличить">
+                  <Plus className="size-4" />
+                </button>
+              </div>
+              <div className="w-32 text-right font-bold text-zinc-950">{item ? formatRub(item.total) : "..."}</div>
+              <button className="rounded-lg p-2 text-zinc-400 hover:bg-red-50 hover:text-red-600" onClick={() => removeItem(cartItem.sku)} aria-label="Удалить">
+                <Trash2 className="size-4" />
+              </button>
+            </div>
+          );
+        })}
+      </section>
+
+      <aside className="h-fit rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
+        <p className="text-sm font-bold uppercase tracking-wide text-zinc-500">Итого</p>
+        <div className="mt-3 text-3xl font-black text-zinc-950">{quote ? formatRub(quote.total) : "..."}</div>
+        {error ? <p className="mt-3 rounded-md bg-amber-50 p-3 text-sm text-amber-900">{error}</p> : null}
+        <Link
+          href="/checkout"
+          className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-lg bg-zinc-950 text-sm font-semibold text-white hover:bg-teal-800"
+        >
+          Оформить заказ
+        </Link>
+      </aside>
+    </div>
+  );
+}
