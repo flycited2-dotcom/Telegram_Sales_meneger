@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { validatePersonalDataConsent } from "@/lib/checkout/validation";
 import { createLocalOrder } from "@/lib/orders";
 
 export type CheckoutState = {
@@ -24,6 +25,12 @@ const cartSchema = z.array(
 );
 
 export async function createCheckoutOrder(_state: CheckoutState, formData: FormData): Promise<CheckoutState> {
+  try {
+    validatePersonalDataConsent(formData.get("personalDataConsent"));
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Подтвердите согласие на обработку персональных данных." };
+  }
+
   const parsed = schema.safeParse(Object.fromEntries(formData));
 
   if (!parsed.success) {

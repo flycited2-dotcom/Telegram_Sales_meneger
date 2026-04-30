@@ -24,7 +24,7 @@ export function ProductCard({ product }: { product: ProductCardProduct }) {
           ) : (
             <div className="flex h-full w-full flex-col items-center justify-center bg-[linear-gradient(135deg,#f4f4f5,#e7f5f1,#fff7ed)] px-6 text-center">
               <span className="text-4xl font-black text-zinc-300">БТО</span>
-              <span className="mt-2 text-xs font-medium text-zinc-500">фото после синхронизации</span>
+              <span className="mt-2 text-xs font-medium text-zinc-500">фото скоро появится</span>
             </div>
           )}
         </div>
@@ -42,7 +42,7 @@ export function ProductCard({ product }: { product: ProductCardProduct }) {
           <div className="mt-2 rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-800">Заказ кратно {product.multiplicity} шт.</div>
         ) : null}
         <div className="mt-auto pt-4">
-          <div className="mb-3 text-xl font-bold text-zinc-950">{price ? formatRub(price) : "Цена после синхронизации"}</div>
+          <div className="mb-3 text-xl font-bold text-zinc-950">{price ? formatRub(price) : "Цена уточняется"}</div>
           <AddToCartButton
             sku={product.sku}
             multiplicity={product.multiplicity}

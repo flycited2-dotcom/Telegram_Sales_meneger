@@ -6,7 +6,7 @@ export function CatalogGrid({ products }: { products: Array<Product & { images?:
     return (
       <div className="rounded-lg border border-dashed border-zinc-300 bg-white px-6 py-12 text-center">
         <p className="text-lg font-semibold text-zinc-950">Товары не найдены</p>
-        <p className="mt-2 text-sm text-zinc-500">Измените фильтры или запустите синхронизацию каталога в админке.</p>
+        <p className="mt-2 text-sm text-zinc-500">Попробуйте изменить поиск, выбрать другой бренд или открыть весь каталог.</p>
       </div>
     );
   }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildOrderQuote } from "@/lib/checkout/validation";
+import { buildOrderQuote, validatePersonalDataConsent } from "@/lib/checkout/validation";
 
 describe("buildOrderQuote", () => {
   const products = [
@@ -39,5 +39,12 @@ describe("buildOrderQuote", () => {
         products,
       }),
     ).toThrow("Кабель HDMI продается кратно 3 шт.");
+  });
+});
+
+describe("validatePersonalDataConsent", () => {
+  it("requires explicit personal data consent", () => {
+    expect(() => validatePersonalDataConsent(undefined)).toThrow("Подтвердите согласие на обработку персональных данных.");
+    expect(() => validatePersonalDataConsent("on")).not.toThrow();
   });
 });

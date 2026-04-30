@@ -1,7 +1,14 @@
+import type { Metadata } from "next";
 import { CatalogView } from "@/app/catalog/catalog-view";
 import { getCatalogPage } from "@/lib/catalog";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Каталог техники и товаров для дома",
+  description:
+    "Каталог бытовой техники, электроники, климатического оборудования и товаров для дома с доставкой по Крыму, Херсонской и Запорожской областям.",
+};
 
 type Props = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -36,7 +43,7 @@ export default async function CatalogPage({ searchParams }: Props) {
         perPage={24}
         categories={[]}
         brands={[]}
-        error="PostgreSQL пока недоступен. Настройте DATABASE_URL, выполните prisma db push и запустите синхронизацию."
+        error="Каталог временно недоступен. Позвоните нам, и менеджер поможет подобрать товар вручную."
       />
     );
   }

@@ -1,7 +1,13 @@
+import type { Metadata } from "next";
 import { CatalogView } from "@/app/catalog/catalog-view";
 import { getCatalogPage } from "@/lib/catalog";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Поиск товаров",
+  description: "Поиск бытовой техники, электроники, климатического оборудования и товаров для дома в БытТехОпт.",
+};
 
 type Props = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -14,7 +20,10 @@ function first(value: string | string[] | undefined): string | undefined {
 export default async function SearchPage({ searchParams }: Props) {
   const params = await searchParams;
   const query = first(params.q) ?? "";
-  const data = await getCatalogPage({ query });
+  const brand = first(params.brand);
+  const page = Number(first(params.page) ?? 1);
+  const onlyAvailable = first(params.available) === "1";
+  const data = await getCatalogPage({ query, brand, available: onlyAvailable, page });
 
   return (
     <CatalogView
@@ -26,6 +35,9 @@ export default async function SearchPage({ searchParams }: Props) {
       categories={data.categories}
       brands={data.brands}
       currentQuery={query}
+      currentBrand={brand}
+      onlyAvailable={onlyAvailable}
+      basePath="/search"
     />
   );
 }

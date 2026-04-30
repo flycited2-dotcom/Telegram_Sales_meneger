@@ -68,7 +68,7 @@ export function CartClient() {
     return (
       <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-10 text-center">
         <h1 className="text-2xl font-black text-zinc-950">Корзина пустая</h1>
-        <p className="mt-2 text-zinc-500">Добавьте товары из каталога, затем оформите заказ.</p>
+        <p className="mt-2 text-zinc-500">Выберите товары в каталоге, добавьте их в корзину и оставьте контакты для подтверждения заказа.</p>
         <Link href="/catalog" className="mt-6 inline-flex h-11 items-center rounded-lg bg-teal-700 px-5 text-sm font-semibold text-white hover:bg-teal-800">
           В каталог
         </Link>
@@ -108,6 +108,7 @@ export function CartClient() {
       <aside className="h-fit rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
         <p className="text-sm font-bold uppercase tracking-wide text-zinc-500">Итого</p>
         <div className="mt-3 text-3xl font-black text-zinc-950">{quote ? formatRub(quote.total) : "..."}</div>
+        <p className="mt-2 text-sm text-zinc-500">Менеджер подтвердит заказ и доставку. Оплата при получении.</p>
         {error ? <p className="mt-3 rounded-md bg-amber-50 p-3 text-sm text-amber-900">{error}</p> : null}
         <Link
           href="/checkout"

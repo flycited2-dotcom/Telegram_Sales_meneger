@@ -1,16 +1,35 @@
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import type { Metadata } from "next";
+import { ArrowLeft, CheckCircle2, CreditCard, Truck } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AddToCartButton } from "@/components/add-to-cart-button";
 import { StockBadge } from "@/components/stock-badge";
 import { decimalToNumber, getProductBySlug } from "@/lib/catalog";
 import { formatRub } from "@/lib/format";
+import { storefront } from "@/lib/storefront";
 
 export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ slug: string }>;
 };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const product = await getProductBySlug(slug);
+
+  if (!product) {
+    return {
+      title: "Товар не найден",
+    };
+  }
+
+  const name = product.name ?? product.supplierName;
+  return {
+    title: name,
+    description: `${name} в интернет-магазине ${storefront.brand}. Доставка по региону: ${storefront.region}. Оплата при получении.`,
+  };
+}
 
 export default async function ProductPage({ params }: Props) {
   const { slug } = await params;
@@ -40,7 +59,7 @@ export default async function ProductPage({ params }: Props) {
             ) : (
               <div className="flex h-full w-full flex-col items-center justify-center bg-[linear-gradient(135deg,#f4f4f5,#e7f5f1,#fff7ed)] text-center">
                 <span className="text-7xl font-black text-zinc-300">БТО</span>
-                <span className="mt-3 text-sm font-medium text-zinc-500">Изображение появится после синхронизации фото</span>
+                <span className="mt-3 text-sm font-medium text-zinc-500">Фото товара скоро появится</span>
               </div>
             )}
           </div>
@@ -58,7 +77,7 @@ export default async function ProductPage({ params }: Props) {
           <p className="mt-5 text-sm font-semibold uppercase tracking-wide text-teal-700">{product.vendor ?? "Товар"}</p>
           <h1 className="mt-2 text-3xl font-black tracking-normal text-zinc-950">{name}</h1>
           <div className="mt-4 text-sm text-zinc-500">SKU {product.sku}</div>
-          <div className="mt-6 text-4xl font-black text-zinc-950">{price ? formatRub(price) : "Цена после синхронизации"}</div>
+          <div className="mt-6 text-4xl font-black text-zinc-950">{price ? formatRub(price) : "Цена уточняется"}</div>
           {product.rrp ? <div className="mt-2 text-sm text-zinc-500">РРЦ: {formatRub(decimalToNumber(product.rrp))}</div> : null}
           <div className="mt-6">
             <AddToCartButton sku={product.sku} multiplicity={product.multiplicity} disabled={!product.isAvailable || !price} />
@@ -66,6 +85,16 @@ export default async function ProductPage({ params }: Props) {
           {product.multiplicity > 1 ? (
             <p className="mt-3 text-sm text-amber-800">Заказ кратно {product.multiplicity} шт.</p>
           ) : null}
+          <div className="mt-6 grid gap-2 text-sm text-zinc-600">
+            <div className="flex gap-2 rounded-md bg-emerald-50 p-3 text-emerald-800">
+              <Truck className="size-5 shrink-0" aria-hidden />
+              <span>Доставка по региону: {storefront.region}</span>
+            </div>
+            <div className="flex gap-2 rounded-md bg-stone-50 p-3">
+              <CreditCard className="size-5 shrink-0 text-teal-700" aria-hidden />
+              <span>Оплата при получении после подтверждения заказа.</span>
+            </div>
+          </div>
           <dl className="mt-8 grid grid-cols-2 gap-3 text-sm">
             {[
               ["Партномер", product.part],
@@ -86,13 +115,13 @@ export default async function ProductPage({ params }: Props) {
         <div className="rounded-lg border border-zinc-200 bg-white p-6">
           <h2 className="text-xl font-bold text-zinc-950">Описание</h2>
           <p className="mt-3 leading-7 text-zinc-600">
-            {product.description ?? "Описание можно добавить в админке: SEO-название, характеристики и продающий текст не перетираются следующей синхронизацией."}
+            {product.description ?? "Информацию по характеристикам, наличию и срокам доставки уточнит менеджер при подтверждении заказа."}
           </p>
         </div>
         <div className="rounded-lg border border-zinc-200 bg-white p-6">
           <h2 className="text-xl font-bold text-zinc-950">Как оформляется заказ</h2>
           <div className="mt-4 space-y-3 text-sm text-zinc-600">
-            {["Проверяем актуальную локальную цену и наличие.", "Учитываем кратность заказа.", "Создаем локальный заказ и уведомляем менеджера."].map((item) => (
+            {["Вы добавляете товар в корзину и оставляете контакты.", "Менеджер подтверждает наличие, цену и срок доставки.", "Вы оплачиваете заказ при получении."].map((item) => (
               <div key={item} className="flex gap-3">
                 <CheckCircle2 className="size-5 shrink-0 text-teal-700" aria-hidden />
                 <span>{item}</span>

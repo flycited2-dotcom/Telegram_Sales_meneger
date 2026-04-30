@@ -28,6 +28,12 @@ export type OrderQuote = {
   total: number;
 };
 
+export function validatePersonalDataConsent(value: FormDataEntryValue | null | undefined): void {
+  if (value !== "on") {
+    throw new Error("Подтвердите согласие на обработку персональных данных.");
+  }
+}
+
 export function buildOrderQuote({
   cartItems,
   products,

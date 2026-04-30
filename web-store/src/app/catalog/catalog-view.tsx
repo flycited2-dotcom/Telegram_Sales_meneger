@@ -14,6 +14,7 @@ export function CatalogView({
   currentQuery,
   currentBrand,
   onlyAvailable,
+  basePath = "/catalog",
   error,
 }: {
   title: string;
@@ -26,16 +27,26 @@ export function CatalogView({
   currentQuery?: string;
   currentBrand?: string;
   onlyAvailable?: boolean;
+  basePath?: string;
   error?: string;
 }) {
   const totalPages = Math.max(Math.ceil(total / perPage), 1);
+  const pageHref = (nextPage: number) => {
+    const params = new URLSearchParams();
+    if (currentQuery) params.set("q", currentQuery);
+    if (currentBrand) params.set("brand", currentBrand);
+    if (onlyAvailable) params.set("available", "1");
+    if (nextPage > 1) params.set("page", String(nextPage));
+    const query = params.toString();
+    return query ? `${basePath}?${query}` : basePath;
+  };
 
   return (
     <div className="mx-auto grid max-w-7xl gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[280px_1fr] lg:px-8">
       <aside className="space-y-6">
         <div className="rounded-lg border border-zinc-200 bg-white p-4">
           <p className="text-sm font-bold uppercase tracking-wide text-zinc-500">Поиск</p>
-          <form action="/catalog" className="mt-3 flex items-center rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2">
+          <form action={basePath} className="mt-3 flex items-center rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2">
             <Search className="mr-2 size-4 text-zinc-400" aria-hidden />
             <input
               name="q"
@@ -64,7 +75,7 @@ export function CatalogView({
           </div>
         </div>
 
-        <form action="/catalog" className="rounded-lg border border-zinc-200 bg-white p-4">
+        <form action={basePath} className="rounded-lg border border-zinc-200 bg-white p-4">
           <p className="text-sm font-bold uppercase tracking-wide text-zinc-500">Фильтры</p>
           {currentQuery ? <input type="hidden" name="q" value={currentQuery} /> : null}
           <label className="mt-4 block text-sm font-medium text-zinc-700">
@@ -106,7 +117,7 @@ export function CatalogView({
         {totalPages > 1 ? (
           <div className="mt-8 flex items-center justify-center gap-2">
             {page > 1 ? (
-              <Link href={`/catalog?page=${page - 1}`} className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-zinc-50">
+              <Link href={pageHref(page - 1)} className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-zinc-50">
                 Назад
               </Link>
             ) : null}
@@ -114,7 +125,7 @@ export function CatalogView({
               {page} / {totalPages}
             </span>
             {page < totalPages ? (
-              <Link href={`/catalog?page=${page + 1}`} className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-zinc-50">
+              <Link href={pageHref(page + 1)} className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-zinc-50">
                 Дальше
               </Link>
             ) : null}

@@ -1,6 +1,7 @@
-import { Search, ShieldCheck, SlidersHorizontal } from "lucide-react";
+import { Phone, Search, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 import { CartLink } from "@/components/cart-link";
+import { phoneHref, storefront } from "@/lib/storefront";
 
 export function SiteHeader() {
   return (
@@ -11,8 +12,8 @@ export function SiteHeader() {
             БТО
           </span>
           <span className="leading-tight">
-            <span className="block text-base font-bold tracking-tight">БытТехОпт</span>
-            <span className="block text-xs text-zinc-500">B2B-каталог для розницы</span>
+            <span className="block text-base font-bold tracking-tight">{storefront.brand}</span>
+            <span className="block text-xs text-zinc-500">техника и товары под заказ</span>
           </span>
         </Link>
 
@@ -21,25 +22,25 @@ export function SiteHeader() {
           <input
             name="q"
             type="search"
-            placeholder="Поиск по названию, SKU, бренду"
+            placeholder="Поиск по названию, SKU или бренду"
             className="min-w-0 flex-1 bg-transparent text-sm text-zinc-900 placeholder:text-zinc-400"
           />
         </form>
 
         <nav className="ml-auto flex items-center gap-1 sm:gap-2">
+          <a
+            href={phoneHref(storefront.phones[0])}
+            className="hidden h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-100 lg:inline-flex"
+          >
+            <Phone className="size-4" aria-hidden />
+            {storefront.phones[0]}
+          </a>
           <Link
             href="/catalog"
             className="inline-flex h-10 items-center gap-2 rounded-lg px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
           >
             <SlidersHorizontal className="size-4" aria-hidden />
             <span className="hidden sm:inline">Каталог</span>
-          </Link>
-          <Link
-            href="/admin"
-            className="inline-flex h-10 items-center gap-2 rounded-lg px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
-          >
-            <ShieldCheck className="size-4" aria-hidden />
-            <span className="hidden lg:inline">Админка</span>
           </Link>
           <CartLink />
         </nav>

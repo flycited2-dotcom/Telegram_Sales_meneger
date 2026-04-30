@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { normalRetailNameWhere } from "@/lib/retail-products";
 
 const PRODUCTS_PER_PAGE = 24;
 
@@ -42,6 +43,7 @@ export async function getHomeSnapshot() {
         retailPrice: {
           not: null,
         },
+        ...normalRetailNameWhere(),
       },
       include: {
         images: {
@@ -126,7 +128,7 @@ export async function getCatalogPage(query: CatalogQuery) {
           take: 1,
         },
       },
-      orderBy: [{ images: { _count: "desc" } }, { isAvailable: "desc" }, { updatedAt: "desc" }],
+      orderBy: [{ images: { _count: "desc" } }, { isAvailable: "desc" }, { retailPrice: "desc" }, { updatedAt: "desc" }],
       skip: (page - 1) * PRODUCTS_PER_PAGE,
       take: PRODUCTS_PER_PAGE,
     }),
