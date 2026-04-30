@@ -96,12 +96,12 @@ export async function syncItpPrices() {
     }
 
     await finishSyncLog(log.id, {
-      status: failed ? "error" : "success",
+      status: "success",
       total: response.data.total,
       processed,
       failed,
       commandId: response.commandid,
-      message: failed ? "Prices synchronized with missing local products." : "Prices and stock synchronized.",
+      message: failed ? "Prices synchronized; some supplier SKUs were not present in the local catalog." : "Prices and stock synchronized.",
     });
 
     return {
