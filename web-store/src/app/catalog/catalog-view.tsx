@@ -2,6 +2,7 @@ import type { Category, Product, ProductImage } from "@prisma/client";
 import { Search } from "lucide-react";
 import Link from "next/link";
 import { CatalogGrid } from "@/components/catalog-grid";
+import { isDegradedRetailName } from "@/lib/retail-products";
 
 export function CatalogView({
   title,
@@ -31,6 +32,7 @@ export function CatalogView({
   error?: string;
 }) {
   const totalPages = Math.max(Math.ceil(total / perPage), 1);
+  const visibleCategories = categories.filter((category) => !isDegradedRetailName(category.name));
   const pageHref = (nextPage: number) => {
     const params = new URLSearchParams();
     if (currentQuery) params.set("q", currentQuery);
@@ -63,7 +65,7 @@ export function CatalogView({
             <Link href="/catalog" className="block rounded-md px-2 py-2 text-sm font-medium text-zinc-700 hover:bg-stone-100">
               Все товары
             </Link>
-            {categories.map((category) => (
+            {visibleCategories.map((category) => (
               <Link
                 key={category.id}
                 href={`/catalog/${category.slug}`}

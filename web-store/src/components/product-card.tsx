@@ -4,6 +4,7 @@ import { AddToCartButton } from "@/components/add-to-cart-button";
 import { StockBadge } from "@/components/stock-badge";
 import { decimalToNumber } from "@/lib/catalog";
 import { formatRub } from "@/lib/format";
+import { productImageSrc } from "@/lib/product-images";
 
 type ProductCardProduct = Product & {
   images?: ProductImage[];
@@ -11,7 +12,7 @@ type ProductCardProduct = Product & {
 
 export function ProductCard({ product }: { product: ProductCardProduct }) {
   const name = product.name ?? product.supplierName;
-  const image = product.images?.[0]?.localImageUrl ?? product.images?.[0]?.supplierImageUrl;
+  const image = productImageSrc(product.images?.[0]);
   const price = decimalToNumber(product.retailPrice);
 
   return (

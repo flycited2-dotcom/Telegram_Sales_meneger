@@ -6,6 +6,7 @@ import { AddToCartButton } from "@/components/add-to-cart-button";
 import { StockBadge } from "@/components/stock-badge";
 import { decimalToNumber, getProductBySlug } from "@/lib/catalog";
 import { formatRub } from "@/lib/format";
+import { productImageSrc } from "@/lib/product-images";
 import { storefront } from "@/lib/storefront";
 
 export const dynamic = "force-dynamic";
@@ -41,7 +42,7 @@ export default async function ProductPage({ params }: Props) {
 
   const name = product.name ?? product.supplierName;
   const price = decimalToNumber(product.retailPrice);
-  const image = product.images[0]?.localImageUrl ?? product.images[0]?.supplierImageUrl;
+  const image = productImageSrc(product.images[0]);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">

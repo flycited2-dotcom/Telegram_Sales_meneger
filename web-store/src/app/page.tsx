@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { CatalogGrid } from "@/components/catalog-grid";
 import { getHomeSnapshot } from "@/lib/catalog";
+import { isDegradedRetailName } from "@/lib/retail-products";
 import { phoneHref, storefront, storefrontCategories } from "@/lib/storefront";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +25,7 @@ async function loadHome() {
 
 export default async function Home() {
   const { categories, products } = await loadHome();
+  const visibleCategories = categories.filter((category) => !isDegradedRetailName(category.name)).slice(0, 10);
 
   return (
     <>
@@ -135,9 +137,9 @@ export default async function Home() {
           ))}
         </div>
 
-        {categories.length ? (
+        {visibleCategories.length ? (
           <div className="mt-8 flex flex-wrap gap-2">
-            {categories.slice(0, 10).map((category) => (
+            {visibleCategories.map((category) => (
               <Link key={category.id} href={`/catalog/${category.slug}`} className="rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 hover:border-teal-300 hover:text-teal-800">
                 {category.name}
               </Link>
