@@ -47,7 +47,10 @@ export async function SiteHeader() {
             {storefront.phones[0]}
           </a>
           <details className="group relative">
-            <summary className="inline-flex h-10 cursor-pointer list-none items-center gap-2 rounded-lg px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-100 [&::-webkit-details-marker]:hidden">
+            <summary
+              aria-label="Открыть каталог"
+              className="inline-flex h-10 cursor-pointer list-none items-center gap-2 rounded-lg px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-100 [&::-webkit-details-marker]:hidden"
+            >
               <SlidersHorizontal className="size-4" aria-hidden />
               <span className="hidden sm:inline">Каталог</span>
             </summary>

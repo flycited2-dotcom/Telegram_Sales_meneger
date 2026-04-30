@@ -9,7 +9,20 @@ const initialState: CheckoutState = {};
 
 export function CheckoutClient() {
   const [state, action, pending] = useActionState(createCheckoutOrder, initialState);
-  const cartJson = JSON.stringify(useCart());
+  const cart = useCart();
+  const cartJson = JSON.stringify(cart);
+
+  if (!cart.length) {
+    return (
+      <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-10 text-center">
+        <h2 className="text-2xl font-black text-zinc-950">Корзина пустая</h2>
+        <p className="mt-2 text-zinc-500">Добавьте товары в корзину, а затем оставьте контакты для подтверждения заказа.</p>
+        <Link href="/catalog" className="mt-6 inline-flex h-11 items-center rounded-lg bg-teal-700 px-5 text-sm font-semibold text-white hover:bg-teal-800">
+          В каталог
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <form action={action} className="grid gap-4 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">

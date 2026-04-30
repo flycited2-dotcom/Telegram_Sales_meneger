@@ -1,8 +1,9 @@
 import type { Product, ProductImage } from "@prisma/client";
-import { Search } from "lucide-react";
+import { Phone, Search, ShieldCheck, SlidersHorizontal, Truck } from "lucide-react";
 import Link from "next/link";
 import { CatalogGrid } from "@/components/catalog-grid";
 import type { CategoryTreeItem } from "@/lib/catalog-tree";
+import { phoneHref, storefront } from "@/lib/storefront";
 
 function hasActiveCategory(category: CategoryTreeItem, currentCategorySlug?: string): boolean {
   return category.slug === currentCategorySlug || category.children.some((child) => hasActiveCategory(child, currentCategorySlug));
@@ -43,6 +44,134 @@ function CategoryBranch({
           ))}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function SearchPanel({
+  basePath,
+  currentQuery,
+  framed = true,
+}: {
+  basePath: string;
+  currentQuery?: string;
+  framed?: boolean;
+}) {
+  return (
+    <div className={framed ? "rounded-lg border border-zinc-200 bg-white p-4" : ""}>
+      <p className="text-sm font-bold uppercase tracking-wide text-zinc-500">Поиск</p>
+      <form action={basePath} className="mt-3 flex items-center rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2">
+        <Search className="mr-2 size-4 text-zinc-400" aria-hidden />
+        <input
+          name="q"
+          defaultValue={currentQuery}
+          placeholder="Название, SKU, бренд"
+          className="min-w-0 flex-1 bg-transparent text-sm"
+        />
+      </form>
+    </div>
+  );
+}
+
+function CategoriesPanel({
+  categories,
+  currentCategorySlug,
+  framed = true,
+}: {
+  categories: CategoryTreeItem[];
+  currentCategorySlug?: string;
+  framed?: boolean;
+}) {
+  return (
+    <div className={framed ? "rounded-lg border border-zinc-200 bg-white p-4" : ""}>
+      {framed ? <p className="text-sm font-bold uppercase tracking-wide text-zinc-500">Категории</p> : null}
+      <div className="mt-3 max-h-[70vh] space-y-1 overflow-auto pr-1">
+        <Link
+          href="/catalog"
+          aria-current={!currentCategorySlug ? "page" : undefined}
+          className={[
+            "flex items-center justify-between rounded-md px-2 py-2 text-sm font-medium hover:bg-stone-100",
+            !currentCategorySlug ? "bg-teal-50 text-teal-900" : "text-zinc-700",
+          ].join(" ")}
+        >
+          <span>Все товары</span>
+          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500">
+            {categories.reduce((sum, category) => sum + category.productCount, 0).toLocaleString("ru-RU")}
+          </span>
+        </Link>
+        {categories.map((category) => (
+          <CategoryBranch key={category.id} category={category} currentCategorySlug={currentCategorySlug} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FiltersPanel({
+  basePath,
+  brands,
+  currentBrand,
+  currentQuery,
+  onlyAvailable,
+  framed = true,
+}: {
+  basePath: string;
+  brands: string[];
+  currentBrand?: string;
+  currentQuery?: string;
+  onlyAvailable?: boolean;
+  framed?: boolean;
+}) {
+  return (
+    <form action={basePath} className={framed ? "rounded-lg border border-zinc-200 bg-white p-4" : ""}>
+      <p className="text-sm font-bold uppercase tracking-wide text-zinc-500">Фильтры</p>
+      {currentQuery ? <input type="hidden" name="q" value={currentQuery} /> : null}
+      <label className="mt-4 block text-sm font-medium text-zinc-700">
+        Бренд
+        <select name="brand" defaultValue={currentBrand ?? ""} className="mt-2 h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm">
+          <option value="">Любой</option>
+          {brands.map((brand) => (
+            <option key={brand} value={brand}>
+              {brand}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="mt-4 flex items-center gap-2 text-sm text-zinc-700">
+        <input name="available" value="1" type="checkbox" defaultChecked={onlyAvailable} className="size-4 accent-teal-700" />
+        Только в наличии
+      </label>
+      <button className="mt-4 h-10 w-full rounded-lg bg-zinc-950 text-sm font-semibold text-white hover:bg-teal-800">
+        Применить
+      </button>
+    </form>
+  );
+}
+
+function CatalogTrustStrip() {
+  return (
+    <div className="mb-6 grid gap-2 sm:grid-cols-3">
+      <div className="flex gap-3 rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-sm text-emerald-900">
+        <Truck className="mt-0.5 size-5 shrink-0" aria-hidden />
+        <div>
+          <p className="font-semibold">Доставка по региону</p>
+          <p className="mt-1 text-xs leading-5">{storefront.region}</p>
+        </div>
+      </div>
+      <div className="flex gap-3 rounded-lg border border-zinc-200 bg-white p-3 text-sm text-zinc-700">
+        <ShieldCheck className="mt-0.5 size-5 shrink-0 text-teal-700" aria-hidden />
+        <div>
+          <p className="font-semibold text-zinc-950">Проверка заказа</p>
+          <p className="mt-1 text-xs leading-5">Менеджер подтвердит наличие, цену и срок.</p>
+        </div>
+      </div>
+      <a href={phoneHref(storefront.phones[0])} className="flex gap-3 rounded-lg border border-zinc-200 bg-white p-3 text-sm text-zinc-700 hover:border-teal-200 hover:text-teal-800">
+        <Phone className="mt-0.5 size-5 shrink-0 text-teal-700" aria-hidden />
+        <div>
+          <p className="font-semibold text-zinc-950">Связь с магазином</p>
+          <p className="mt-1 text-xs leading-5">{storefront.phones[0]}</p>
+        </div>
+      </a>
     </div>
   );
 }
@@ -89,73 +218,45 @@ export function CatalogView({
 
   return (
     <div className="mx-auto grid max-w-7xl gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[280px_1fr] lg:px-8">
-      <aside className="space-y-6">
-        <div className="rounded-lg border border-zinc-200 bg-white p-4">
-          <p className="text-sm font-bold uppercase tracking-wide text-zinc-500">Поиск</p>
-          <form action={basePath} className="mt-3 flex items-center rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2">
-            <Search className="mr-2 size-4 text-zinc-400" aria-hidden />
-            <input
-              name="q"
-              defaultValue={currentQuery}
-              placeholder="Название, SKU, бренд"
-              className="min-w-0 flex-1 bg-transparent text-sm"
-            />
-          </form>
-        </div>
-
-        <div className="rounded-lg border border-zinc-200 bg-white p-4">
-          <p className="text-sm font-bold uppercase tracking-wide text-zinc-500">Категории</p>
-          <div className="mt-3 max-h-[70vh] space-y-1 overflow-auto pr-1">
-            <Link
-              href="/catalog"
-              aria-current={!currentCategorySlug ? "page" : undefined}
-              className={[
-                "flex items-center justify-between rounded-md px-2 py-2 text-sm font-medium hover:bg-stone-100",
-                !currentCategorySlug ? "bg-teal-50 text-teal-900" : "text-zinc-700",
-              ].join(" ")}
-            >
-              <span>Все товары</span>
-              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500">
-                {categories.reduce((sum, category) => sum + category.productCount, 0).toLocaleString("ru-RU")}
-              </span>
-            </Link>
-            {categories.map((category) => (
-              <CategoryBranch key={category.id} category={category} currentCategorySlug={currentCategorySlug} />
-            ))}
-          </div>
-        </div>
-
-        <form action={basePath} className="rounded-lg border border-zinc-200 bg-white p-4">
-          <p className="text-sm font-bold uppercase tracking-wide text-zinc-500">Фильтры</p>
-          {currentQuery ? <input type="hidden" name="q" value={currentQuery} /> : null}
-          <label className="mt-4 block text-sm font-medium text-zinc-700">
-            Бренд
-            <select name="brand" defaultValue={currentBrand ?? ""} className="mt-2 h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm">
-              <option value="">Любой</option>
-              {brands.map((brand) => (
-                <option key={brand} value={brand}>
-                  {brand}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="mt-4 flex items-center gap-2 text-sm text-zinc-700">
-            <input name="available" value="1" type="checkbox" defaultChecked={onlyAvailable} className="size-4 accent-teal-700" />
-            Только в наличии
-          </label>
-          <button className="mt-4 h-10 w-full rounded-lg bg-zinc-950 text-sm font-semibold text-white hover:bg-teal-800">
-            Применить
-          </button>
-        </form>
-      </aside>
-
-      <section className="min-w-0">
+      <section className="min-w-0 lg:order-2">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">Каталог</p>
             <h1 className="mt-2 text-3xl font-black tracking-normal text-zinc-950">{title}</h1>
             <p className="mt-2 text-sm text-zinc-500">Найдено товаров: {total}</p>
           </div>
+        </div>
+
+        <CatalogTrustStrip />
+
+        <div className="mb-6 grid gap-3 lg:hidden">
+          <details open={Boolean(currentQuery || currentBrand || onlyAvailable)} className="rounded-lg border border-zinc-200 bg-white p-4">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-bold uppercase tracking-wide text-zinc-600 [&::-webkit-details-marker]:hidden">
+              <span className="inline-flex items-center gap-2">
+                <SlidersHorizontal className="size-4" aria-hidden />
+                Поиск и фильтры
+              </span>
+              <span className="rounded-full bg-stone-100 px-3 py-1 text-xs normal-case tracking-normal text-zinc-500">открыть</span>
+            </summary>
+            <div className="mt-4 grid gap-5">
+              <SearchPanel basePath={basePath} currentQuery={currentQuery} framed={false} />
+              <FiltersPanel
+                basePath={basePath}
+                brands={brands}
+                currentBrand={currentBrand}
+                currentQuery={currentQuery}
+                onlyAvailable={onlyAvailable}
+                framed={false}
+              />
+            </div>
+          </details>
+          <details className="rounded-lg border border-zinc-200 bg-white p-4">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-bold uppercase tracking-wide text-zinc-600 [&::-webkit-details-marker]:hidden">
+              <span>Категории</span>
+              <span className="rounded-full bg-stone-100 px-3 py-1 text-xs normal-case tracking-normal text-zinc-500">{categories.length}</span>
+            </summary>
+            <CategoriesPanel categories={categories} currentCategorySlug={currentCategorySlug} framed={false} />
+          </details>
         </div>
 
         {error ? (
@@ -182,6 +283,18 @@ export function CatalogView({
           </div>
         ) : null}
       </section>
+
+      <aside className="hidden space-y-6 lg:order-1 lg:block">
+        <SearchPanel basePath={basePath} currentQuery={currentQuery} />
+        <CategoriesPanel categories={categories} currentCategorySlug={currentCategorySlug} />
+        <FiltersPanel
+          basePath={basePath}
+          brands={brands}
+          currentBrand={currentBrand}
+          currentQuery={currentQuery}
+          onlyAvailable={onlyAvailable}
+        />
+      </aside>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { itpRpc } from "@/lib/itp/client";
-import { chunk, sleep } from "@/lib/itp/utils";
+import { sleep } from "@/lib/itp/utils";
 import type { ItpProductImage } from "@/lib/itp/types";
 import { finishSyncLog, sanitizePayload, startSyncLog } from "@/lib/sync-log";
 
@@ -9,35 +9,69 @@ type ProductImagesResponse = {
   total: number;
 };
 
+export function parseImageSyncLimit(value: string | undefined): number | null {
+  const normalized = value?.trim().toLowerCase();
+
+  if (!normalized || normalized === "all" || normalized === "0") {
+    return null;
+  }
+
+  const limit = Number(normalized);
+  return Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : null;
+}
+
 function supplierImageUrl(path: string): string {
   const baseUrl = process.env.ITP_API_BASE_URL ?? "https://b2b.i-t-p.pro";
   const imageSize = process.env.ITP_IMAGE_SIZE ?? "large";
   return `${baseUrl}/${path.replace(/^\/+/, "")}?size=${imageSize}`;
 }
 
-export async function syncItpImages(limit = 1000) {
+export async function syncItpImages(limit: number | null = null) {
   const log = await startSyncLog("images");
 
   try {
-    const products = await prisma.product.findMany({
-      where: {
-        hasImage: true,
-        isActive: true,
-      },
-      select: {
-        id: true,
-        sku: true,
-      },
-      take: limit,
-      orderBy: {
-        updatedAt: "desc",
-      },
-    });
-    const productIdsBySku = new Map(products.map((product) => [product.sku, product.id]));
+    const productWhere = {
+      hasImage: true,
+      isActive: true,
+    };
+    const availableProducts = await prisma.product.count({ where: productWhere });
+    const total = limit ? Math.min(limit, availableProducts) : availableProducts;
+    const batchSize = 100;
+    let scanned = 0;
     let processed = 0;
     let failed = 0;
+    let lastSku: number | undefined;
 
-    for (const skus of chunk(products.map((product) => product.sku), 100)) {
+    while (scanned < total) {
+      const products = await prisma.product.findMany({
+        where: {
+          ...productWhere,
+          ...(lastSku
+            ? {
+                sku: {
+                  gt: lastSku,
+                },
+              }
+            : {}),
+        },
+        select: {
+          id: true,
+          sku: true,
+        },
+        take: Math.min(batchSize, total - scanned),
+        orderBy: {
+          sku: "asc",
+        },
+      });
+
+      if (!products.length) {
+        break;
+      }
+
+      scanned += products.length;
+      lastSku = products[products.length - 1]?.sku;
+      const productIdsBySku = new Map(products.map((product) => [product.sku, product.id]));
+
       const response = await itpRpc<ProductImagesResponse>({
         request: {
           method: "read_new",
@@ -48,13 +82,14 @@ export async function syncItpImages(limit = 1000) {
           {
             property: "sku",
             operator: "IN",
-            value: skus,
+            value: products.map((product) => product.sku),
           },
         ],
       });
 
       if (!response.success || !response.data) {
-        failed += skus.length;
+        failed += products.length;
+        await sleep(500);
         continue;
       }
 
@@ -93,14 +128,14 @@ export async function syncItpImages(limit = 1000) {
 
     await finishSyncLog(log.id, {
       status: failed ? "error" : "success",
-      total: products.length,
+      total,
       processed,
       failed,
-      message: "Image metadata synchronized. Local file downloading can be enabled as the next stage.",
+      message: `Image metadata synchronized for ${scanned} products with supplier images.`,
     });
 
     return {
-      total: products.length,
+      total,
       processed,
       failed,
     };

@@ -61,9 +61,9 @@ export async function GET(request: Request, { params }: RouteContext) {
     next: {
       revalidate: 86400,
     },
-  });
+  }).catch(() => null);
 
-  if (!upstream.ok || !upstream.body) {
+  if (!upstream?.ok || !upstream.body) {
     return placeholderImageResponse();
   }
 
