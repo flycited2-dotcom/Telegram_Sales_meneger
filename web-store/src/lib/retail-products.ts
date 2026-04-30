@@ -3,6 +3,8 @@ import type { Prisma } from "@prisma/client";
 export const degradedRetailNameTerms = [
   "поврежденная упаковка",
   "повреждённая упаковка",
+  "поврежденный товар",
+  "повреждённый товар",
   "уценка",
   "витринный образец",
   "б/у",
@@ -17,10 +19,7 @@ export function isDegradedRetailName(name: string | null | undefined): boolean {
 export function normalRetailNameWhere(): Prisma.ProductWhereInput {
   return {
     NOT: degradedRetailNameTerms.map((term) => ({
-      OR: [
-        { name: { contains: term, mode: "insensitive" } },
-        { supplierName: { contains: term, mode: "insensitive" } },
-      ],
+      supplierName: { contains: term, mode: "insensitive" },
     })),
   };
 }
