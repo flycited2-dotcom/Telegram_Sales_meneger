@@ -1,9 +1,11 @@
 import type { Prisma } from "@prisma/client";
+import { unstable_cache } from "next/cache";
 import { buildCategoryTree, collectDescendantCategoryIds, type CategoryTreeItem, type FlatCategory } from "@/lib/catalog-tree";
 import { prisma } from "@/lib/db";
 import { isDegradedRetailName, normalRetailNameWhere } from "@/lib/retail-products";
 
 const PRODUCTS_PER_PAGE = 24;
+const STOREFRONT_CACHE_SECONDS = 300;
 
 export type CatalogQuery = {
   categorySlug?: string;
@@ -23,7 +25,7 @@ export function decimalToNumber(value: unknown): number {
   return Number(value);
 }
 
-async function getActiveCategories(): Promise<FlatCategory[]> {
+const getActiveCategories = unstable_cache(async (): Promise<FlatCategory[]> => {
   return prisma.category.findMany({
     where: {
       isActive: true,
@@ -39,9 +41,9 @@ async function getActiveCategories(): Promise<FlatCategory[]> {
       name: "asc",
     },
   });
-}
+}, ["active-catalog-categories"], { revalidate: STOREFRONT_CACHE_SECONDS, tags: ["catalog"] });
 
-export async function getHeaderCategories() {
+export const getHeaderCategories = unstable_cache(async () => {
   if (!process.env.DATABASE_URL) {
     return [];
   }
@@ -64,10 +66,10 @@ export async function getHeaderCategories() {
   });
 
   return categories.filter((category) => !isDegradedRetailName(category.name));
-}
+}, ["header-categories"], { revalidate: STOREFRONT_CACHE_SECONDS, tags: ["catalog"] });
 
-async function getCatalogCategoryTree(categories: FlatCategory[]): Promise<CategoryTreeItem[]> {
-  const counts = await prisma.product.groupBy({
+const getCategoryProductCounts = unstable_cache(async () => {
+  return prisma.product.groupBy({
     by: ["categoryId"],
     where: {
       categoryId: {
@@ -80,12 +82,32 @@ async function getCatalogCategoryTree(categories: FlatCategory[]): Promise<Categ
       _all: true,
     },
   });
+}, ["catalog-category-product-counts"], { revalidate: STOREFRONT_CACHE_SECONDS, tags: ["catalog"] });
+
+async function getCatalogCategoryTree(categories: FlatCategory[]): Promise<CategoryTreeItem[]> {
+  const counts = await getCategoryProductCounts();
 
   return buildCategoryTree(
     categories,
     new Map(counts.flatMap((row) => (row.categoryId ? [[row.categoryId, row._count._all]] : []))),
   );
 }
+
+export const getCategoryBySlug = unstable_cache(async (slug: string): Promise<FlatCategory | null> => {
+  return prisma.category.findFirst({
+    where: {
+      slug,
+      isActive: true,
+      isVisible: true,
+    },
+    select: {
+      id: true,
+      parentId: true,
+      name: true,
+      slug: true,
+    },
+  });
+}, ["category-by-slug"], { revalidate: STOREFRONT_CACHE_SECONDS, tags: ["catalog"] });
 
 function getExcludedCategoryIds(categories: FlatCategory[]): string[] {
   return Array.from(
@@ -97,7 +119,11 @@ function getExcludedCategoryIds(categories: FlatCategory[]): string[] {
   );
 }
 
-export async function getHomeSnapshot() {
+export const getHomeSnapshot = unstable_cache(async () => {
+  if (!process.env.DATABASE_URL) {
+    return { categories: [], products: [] };
+  }
+
   const allCategories = await getActiveCategories();
   const excludedCategoryIds = getExcludedCategoryIds(allCategories);
   const [categories, products] = await Promise.all([
@@ -136,7 +162,21 @@ export async function getHomeSnapshot() {
   ]);
 
   return { categories, products };
-}
+}, ["home-snapshot"], { revalidate: STOREFRONT_CACHE_SECONDS, tags: ["catalog", "products"] });
+
+const getCatalogBrands = unstable_cache(async (where: Prisma.ProductWhereInput) => {
+  return prisma.product.findMany({
+    where,
+    distinct: ["vendor"],
+    select: {
+      vendor: true,
+    },
+    orderBy: {
+      vendor: "asc",
+    },
+    take: 80,
+  });
+}, ["catalog-brands"], { revalidate: STOREFRONT_CACHE_SECONDS, tags: ["catalog", "products"] });
 
 export async function getCatalogPage(query: CatalogQuery) {
   const page = Math.max(query.page ?? 1, 1);
@@ -182,10 +222,10 @@ export async function getCatalogPage(query: CatalogQuery) {
   }
 
   if (query.minPrice || query.maxPrice) {
-    filteredWhere.retailPrice = {
-      gte: query.minPrice,
-      lte: query.maxPrice,
-    };
+    const priceFilter: Prisma.DecimalFilter = {};
+    if (query.minPrice) priceFilter.gte = query.minPrice;
+    if (query.maxPrice) priceFilter.lte = query.maxPrice;
+    filteredWhere.retailPrice = priceFilter;
   }
 
   const brandWhere: Prisma.ProductWhereInput = {
@@ -220,17 +260,7 @@ export async function getCatalogPage(query: CatalogQuery) {
     }),
     prisma.product.count({ where: filteredWhere }),
     getCatalogCategoryTree(allCategories),
-    prisma.product.findMany({
-      where: brandWhere,
-      distinct: ["vendor"],
-      select: {
-        vendor: true,
-      },
-      orderBy: {
-        vendor: "asc",
-      },
-      take: 80,
-    }),
+    getCatalogBrands(brandWhere),
   ]);
 
   return {
@@ -244,7 +274,7 @@ export async function getCatalogPage(query: CatalogQuery) {
   };
 }
 
-export async function getProductBySlug(slug: string) {
+export const getProductBySlug = unstable_cache(async (slug: string) => {
   return prisma.product.findFirst({
     where: {
       slug,
@@ -263,7 +293,7 @@ export async function getProductBySlug(slug: string) {
       },
     },
   });
-}
+}, ["product-by-slug"], { revalidate: STOREFRONT_CACHE_SECONDS, tags: ["products"] });
 
 export async function getProductsForQuote(skus: number[]) {
   const products = await prisma.product.findMany({

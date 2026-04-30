@@ -1,5 +1,5 @@
 import type { Product, ProductImage } from "@prisma/client";
-import { Phone, Search, ShieldCheck, SlidersHorizontal, Truck } from "lucide-react";
+import { ChevronDown, Phone, Search, ShieldCheck, SlidersHorizontal, Truck } from "lucide-react";
 import Link from "next/link";
 import { CatalogGrid } from "@/components/catalog-grid";
 import type { CategoryTreeItem } from "@/lib/catalog-tree";
@@ -27,8 +27,8 @@ function CategoryBranch({
         href={`/catalog/${category.slug}`}
         aria-current={active ? "page" : undefined}
         className={[
-          "flex items-start justify-between gap-3 rounded-md py-2 pr-2 text-sm font-medium hover:bg-stone-100",
-          active ? "bg-teal-50 text-teal-900" : "text-zinc-700",
+          "group flex items-start justify-between gap-3 rounded-md border-l-2 py-2 pr-2 text-sm font-medium hover:bg-stone-100",
+          active ? "border-teal-600 bg-teal-50 text-teal-900" : "border-transparent text-zinc-700",
         ].join(" ")}
         style={{ paddingLeft: `${8 + level * 12}px` }}
       >
@@ -113,6 +113,8 @@ function FiltersPanel({
   currentBrand,
   currentQuery,
   onlyAvailable,
+  minPrice,
+  maxPrice,
   framed = true,
 }: {
   basePath: string;
@@ -120,11 +122,22 @@ function FiltersPanel({
   currentBrand?: string;
   currentQuery?: string;
   onlyAvailable?: boolean;
+  minPrice?: number;
+  maxPrice?: number;
   framed?: boolean;
 }) {
+  const hasFilters = Boolean(currentBrand || currentQuery || onlyAvailable || minPrice || maxPrice);
+
   return (
     <form action={basePath} className={framed ? "rounded-lg border border-zinc-200 bg-white p-4" : ""}>
-      <p className="text-sm font-bold uppercase tracking-wide text-zinc-500">Фильтры</p>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-bold uppercase tracking-wide text-zinc-500">Фильтры</p>
+        {hasFilters ? (
+          <Link href={basePath} className="text-xs font-semibold text-teal-800 hover:text-teal-950">
+            Сбросить
+          </Link>
+        ) : null}
+      </div>
       {currentQuery ? <input type="hidden" name="q" value={currentQuery} /> : null}
       <label className="mt-4 block text-sm font-medium text-zinc-700">
         Бренд
@@ -137,6 +150,28 @@ function FiltersPanel({
           ))}
         </select>
       </label>
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <label className="block text-sm font-medium text-zinc-700">
+          Цена от
+          <input
+            name="minPrice"
+            inputMode="numeric"
+            defaultValue={minPrice ?? ""}
+            placeholder="0"
+            className="mt-2 h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm"
+          />
+        </label>
+        <label className="block text-sm font-medium text-zinc-700">
+          Цена до
+          <input
+            name="maxPrice"
+            inputMode="numeric"
+            defaultValue={maxPrice ?? ""}
+            placeholder="любая"
+            className="mt-2 h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm"
+          />
+        </label>
+      </div>
       <label className="mt-4 flex items-center gap-2 text-sm text-zinc-700">
         <input name="available" value="1" type="checkbox" defaultChecked={onlyAvailable} className="size-4 accent-teal-700" />
         Только в наличии
@@ -188,6 +223,8 @@ export function CatalogView({
   currentQuery,
   currentBrand,
   onlyAvailable,
+  minPrice,
+  maxPrice,
   basePath = "/catalog",
   error,
 }: {
@@ -202,6 +239,8 @@ export function CatalogView({
   currentQuery?: string;
   currentBrand?: string;
   onlyAvailable?: boolean;
+  minPrice?: number;
+  maxPrice?: number;
   basePath?: string;
   error?: string;
 }) {
@@ -211,6 +250,8 @@ export function CatalogView({
     if (currentQuery) params.set("q", currentQuery);
     if (currentBrand) params.set("brand", currentBrand);
     if (onlyAvailable) params.set("available", "1");
+    if (minPrice) params.set("minPrice", String(minPrice));
+    if (maxPrice) params.set("maxPrice", String(maxPrice));
     if (nextPage > 1) params.set("page", String(nextPage));
     const query = params.toString();
     return query ? `${basePath}?${query}` : basePath;
@@ -236,7 +277,7 @@ export function CatalogView({
                 <SlidersHorizontal className="size-4" aria-hidden />
                 Поиск и фильтры
               </span>
-              <span className="rounded-full bg-stone-100 px-3 py-1 text-xs normal-case tracking-normal text-zinc-500">открыть</span>
+              <ChevronDown className="size-4 shrink-0 text-zinc-400" aria-hidden />
             </summary>
             <div className="mt-4 grid gap-5">
               <SearchPanel basePath={basePath} currentQuery={currentQuery} framed={false} />
@@ -246,6 +287,8 @@ export function CatalogView({
                 currentBrand={currentBrand}
                 currentQuery={currentQuery}
                 onlyAvailable={onlyAvailable}
+                minPrice={minPrice}
+                maxPrice={maxPrice}
                 framed={false}
               />
             </div>
@@ -253,7 +296,7 @@ export function CatalogView({
           <details className="rounded-lg border border-zinc-200 bg-white p-4">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-bold uppercase tracking-wide text-zinc-600 [&::-webkit-details-marker]:hidden">
               <span>Категории</span>
-              <span className="rounded-full bg-stone-100 px-3 py-1 text-xs normal-case tracking-normal text-zinc-500">{categories.length}</span>
+              <ChevronDown className="size-4 shrink-0 text-zinc-400" aria-hidden />
             </summary>
             <CategoriesPanel categories={categories} currentCategorySlug={currentCategorySlug} framed={false} />
           </details>
@@ -284,7 +327,8 @@ export function CatalogView({
         ) : null}
       </section>
 
-      <aside className="hidden space-y-6 lg:order-1 lg:block">
+      <aside className="hidden lg:order-1 lg:block">
+        <div className="sticky top-24 space-y-6">
         <SearchPanel basePath={basePath} currentQuery={currentQuery} />
         <CategoriesPanel categories={categories} currentCategorySlug={currentCategorySlug} />
         <FiltersPanel
@@ -293,7 +337,10 @@ export function CatalogView({
           currentBrand={currentBrand}
           currentQuery={currentQuery}
           onlyAvailable={onlyAvailable}
+          minPrice={minPrice}
+          maxPrice={maxPrice}
         />
+        </div>
       </aside>
     </div>
   );

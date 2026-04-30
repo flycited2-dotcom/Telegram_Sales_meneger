@@ -1,4 +1,4 @@
-import { Phone, Search } from "lucide-react";
+import { Phone, Search, Store } from "lucide-react";
 import Link from "next/link";
 import { CartLink } from "@/components/cart-link";
 import { HeaderCatalogMenu } from "@/components/header-catalog-menu";
@@ -18,14 +18,14 @@ export async function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-zinc-200/80 bg-white/90 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3 sm:px-6 lg:px-8">
-        <Link href="/" className="flex min-w-fit items-center gap-3">
+      <div className="mx-auto flex max-w-7xl items-center gap-2 px-4 py-3 sm:gap-4 sm:px-6 lg:px-8">
+        <Link href="/" className="flex min-w-0 items-center gap-3">
           <span className="flex size-10 items-center justify-center rounded-lg bg-zinc-950 text-sm font-bold text-white">
-            БТО
+            <Store className="size-5" aria-hidden />
           </span>
-          <span className="leading-tight">
-            <span className="block text-base font-bold tracking-tight">{storefront.brand}</span>
-            <span className="block text-xs text-zinc-500">техника и товары под заказ</span>
+          <span className="min-w-0 leading-tight">
+            <span className="block truncate text-base font-bold tracking-tight">{storefront.brand}</span>
+            <span className="block truncate text-xs text-zinc-500 max-[430px]:hidden">техника и товары под заказ</span>
           </span>
         </Link>
 
@@ -39,7 +39,7 @@ export async function SiteHeader() {
           />
         </form>
 
-        <nav className="ml-auto flex items-center gap-1 sm:gap-2">
+        <nav className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
           <a
             href={phoneHref(storefront.phones[0])}
             className="hidden h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-100 lg:inline-flex"

@@ -3,13 +3,15 @@ import { ArrowLeft, CheckCircle2, CreditCard, Truck } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AddToCartButton } from "@/components/add-to-cart-button";
+import { ProductImageFallback } from "@/components/product-image-fallback";
 import { StockBadge } from "@/components/stock-badge";
 import { decimalToNumber, getProductBySlug } from "@/lib/catalog";
 import { formatRub } from "@/lib/format";
+import { buildProductFacts, productDescriptionText } from "@/lib/product-display";
 import { productImageSrc } from "@/lib/product-images";
 import { storefront } from "@/lib/storefront";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -43,6 +45,7 @@ export default async function ProductPage({ params }: Props) {
   const name = product.name ?? product.supplierName;
   const price = decimalToNumber(product.retailPrice);
   const image = productImageSrc(product.images[0]);
+  const facts = buildProductFacts(product);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -58,10 +61,7 @@ export default async function ProductPage({ params }: Props) {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={image} alt={name} className="h-full w-full object-contain" />
             ) : (
-              <div className="flex h-full w-full flex-col items-center justify-center bg-[linear-gradient(135deg,#f4f4f5,#e7f5f1,#fff7ed)] text-center">
-                <span className="text-7xl font-black text-zinc-300">БТО</span>
-                <span className="mt-3 text-sm font-medium text-zinc-500">Фото товара скоро появится</span>
-              </div>
+              <ProductImageFallback />
             )}
           </div>
         </div>
@@ -96,28 +96,24 @@ export default async function ProductPage({ params }: Props) {
               <span>Оплата при получении после подтверждения заказа.</span>
             </div>
           </div>
-          <dl className="mt-8 grid grid-cols-2 gap-3 text-sm">
-            {[
-              ["Партномер", product.part],
-              ["Гарантия", product.warranty ? `${product.warranty} мес.` : null],
-              ["Вес", product.weight ? `${product.weight} кг` : null],
-              ["Срок", product.deliveryDays ? `${product.deliveryDays} дн.` : "день в день"],
-            ].map(([label, value]) => (
-              <div key={label} className="rounded-md bg-stone-50 p-3">
-                <dt className="text-zinc-500">{label}</dt>
-                <dd className="mt-1 font-semibold text-zinc-950">{value ?? "не указан"}</dd>
-              </div>
-            ))}
-          </dl>
         </aside>
       </div>
 
       <section className="mt-8 grid gap-6 lg:grid-cols-2">
         <div className="rounded-lg border border-zinc-200 bg-white p-6">
-          <h2 className="text-xl font-bold text-zinc-950">Описание</h2>
-          <p className="mt-3 leading-7 text-zinc-600">
-            {product.description ?? "Информацию по характеристикам, наличию и срокам доставки уточнит менеджер при подтверждении заказа."}
-          </p>
+          <h2 className="text-xl font-bold text-zinc-950">О товаре</h2>
+          <p className="mt-3 leading-7 text-zinc-600">{productDescriptionText(product.description)}</p>
+        </div>
+        <div className="rounded-lg border border-zinc-200 bg-white p-6">
+          <h2 className="text-xl font-bold text-zinc-950">Характеристики</h2>
+          <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+            {facts.map((fact) => (
+              <div key={fact.label} className="rounded-md bg-stone-50 p-3 text-sm">
+                <dt className="text-zinc-500">{fact.label}</dt>
+                <dd className="mt-1 break-words font-semibold text-zinc-950">{fact.value}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
         <div className="rounded-lg border border-zinc-200 bg-white p-6">
           <h2 className="text-xl font-bold text-zinc-950">Как оформляется заказ</h2>

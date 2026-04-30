@@ -1,8 +1,9 @@
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/db";
+import { normalRetailNameWhere } from "@/lib/retail-products";
 import { storefront } from "@/lib/storefront";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
@@ -33,6 +34,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
+  if (!process.env.DATABASE_URL) {
+    return staticRoutes;
+  }
+
   try {
     const [categories, products] = await Promise.all([
       prisma.category.findMany({
@@ -57,6 +62,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           retailPrice: {
             not: null,
           },
+          ...normalRetailNameWhere(),
         },
         select: {
           slug: true,

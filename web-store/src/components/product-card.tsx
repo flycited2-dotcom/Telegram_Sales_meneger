@@ -1,6 +1,7 @@
 import type { Product, ProductImage } from "@prisma/client";
 import Link from "next/link";
 import { AddToCartButton } from "@/components/add-to-cart-button";
+import { ProductImageFallback } from "@/components/product-image-fallback";
 import { StockBadge } from "@/components/stock-badge";
 import { decimalToNumber } from "@/lib/catalog";
 import { formatRub } from "@/lib/format";
@@ -23,10 +24,7 @@ export function ProductCard({ product }: { product: ProductCardProduct }) {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={image} alt={name} className="h-full w-full object-contain" />
           ) : (
-            <div className="flex h-full w-full flex-col items-center justify-center bg-[linear-gradient(135deg,#f4f4f5,#e7f5f1,#fff7ed)] px-6 text-center">
-              <span className="text-4xl font-black text-zinc-300">БТО</span>
-              <span className="mt-2 text-xs font-medium text-zinc-500">фото скоро появится</span>
-            </div>
+            <ProductImageFallback compact />
           )}
         </div>
       </Link>

@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { CatalogView } from "@/app/catalog/catalog-view";
 import { getCatalogPage } from "@/lib/catalog";
+import { parseCatalogSearchParams } from "@/lib/catalog-query";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: "Поиск товаров",
@@ -13,17 +14,39 @@ type Props = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-function first(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
-}
-
 export default async function SearchPage({ searchParams }: Props) {
-  const params = await searchParams;
-  const query = first(params.q) ?? "";
-  const brand = first(params.brand);
-  const page = Number(first(params.page) ?? 1);
-  const onlyAvailable = first(params.available) === "1";
-  const data = await getCatalogPage({ query, brand, available: onlyAvailable, page });
+  const filters = parseCatalogSearchParams(await searchParams);
+  const query = filters.query ?? "";
+  let data;
+  try {
+    data = await getCatalogPage({
+      query,
+      brand: filters.brand,
+      available: filters.onlyAvailable,
+      minPrice: filters.minPrice,
+      maxPrice: filters.maxPrice,
+      page: filters.page,
+    });
+  } catch {
+    return (
+      <CatalogView
+        title={query ? `Поиск: ${query}` : "Поиск товаров"}
+        products={[]}
+        total={0}
+        page={1}
+        perPage={24}
+        categories={[]}
+        brands={[]}
+        currentQuery={query}
+        currentBrand={filters.brand}
+        onlyAvailable={filters.onlyAvailable}
+        minPrice={filters.minPrice}
+        maxPrice={filters.maxPrice}
+        basePath="/search"
+        error="Поиск временно недоступен. Позвоните нам, и менеджер поможет подобрать товар вручную."
+      />
+    );
+  }
 
   return (
     <CatalogView
@@ -35,8 +58,10 @@ export default async function SearchPage({ searchParams }: Props) {
       categories={data.categories}
       brands={data.brands}
       currentQuery={query}
-      currentBrand={brand}
-      onlyAvailable={onlyAvailable}
+      currentBrand={filters.brand}
+      onlyAvailable={filters.onlyAvailable}
+      minPrice={filters.minPrice}
+      maxPrice={filters.maxPrice}
       basePath="/search"
     />
   );

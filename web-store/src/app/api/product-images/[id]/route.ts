@@ -17,8 +17,9 @@ function placeholderImageResponse(): Response {
     </linearGradient>
   </defs>
   <rect width="800" height="800" rx="32" fill="url(#bg)"/>
-  <text x="400" y="372" text-anchor="middle" font-family="Arial, sans-serif" font-size="96" font-weight="800" fill="#d4d4d8">БТО</text>
-  <text x="400" y="440" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="600" fill="#71717a">Фото скоро появится</text>
+  <circle cx="400" cy="340" r="74" fill="#ffffff" opacity="0.9"/>
+  <path d="M354 350h92m-74-54h56a18 18 0 0 1 18 18v78a18 18 0 0 1-18 18h-56a18 18 0 0 1-18-18v-78a18 18 0 0 1 18-18Zm-8 104 90-92" fill="none" stroke="#a1a1aa" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="400" y="462" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="600" fill="#71717a">Фото товара уточняется</text>
 </svg>`;
 
   return new Response(svg, {

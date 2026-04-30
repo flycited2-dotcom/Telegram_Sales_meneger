@@ -10,7 +10,7 @@ export function CartLink() {
   return (
     <Link
       href="/cart"
-      className="relative inline-flex h-10 items-center gap-2 rounded-lg bg-zinc-950 px-3 text-sm font-semibold text-white hover:bg-teal-800"
+      className="relative inline-flex h-10 items-center gap-2 rounded-lg bg-zinc-950 px-2 text-sm font-semibold text-white hover:bg-teal-800 sm:px-3"
       aria-label="Корзина"
     >
       <ShoppingCart className="size-4" aria-hidden />
