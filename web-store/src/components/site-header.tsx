@@ -1,6 +1,7 @@
-import { Phone, Search, SlidersHorizontal } from "lucide-react";
+import { Phone, Search } from "lucide-react";
 import Link from "next/link";
 import { CartLink } from "@/components/cart-link";
+import { HeaderCatalogMenu } from "@/components/header-catalog-menu";
 import { getHeaderCategories } from "@/lib/catalog";
 import { phoneHref, storefront } from "@/lib/storefront";
 
@@ -46,25 +47,7 @@ export async function SiteHeader() {
             <Phone className="size-4" aria-hidden />
             {storefront.phones[0]}
           </a>
-          <details className="group relative">
-            <summary
-              aria-label="Открыть каталог"
-              className="inline-flex h-10 cursor-pointer list-none items-center gap-2 rounded-lg px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-100 [&::-webkit-details-marker]:hidden"
-            >
-              <SlidersHorizontal className="size-4" aria-hidden />
-              <span className="hidden sm:inline">Каталог</span>
-            </summary>
-            <div className="absolute right-0 top-full z-50 mt-2 hidden w-80 rounded-lg border border-zinc-200 bg-white p-3 shadow-xl group-open:block">
-              <Link href="/catalog" className="block rounded-md px-3 py-2 text-sm font-bold text-zinc-950 hover:bg-stone-100">
-                Весь каталог
-              </Link>
-              {categories.map((category) => (
-                <Link key={category.id} href={`/catalog/${category.slug}`} className="block rounded-md px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-stone-100">
-                  {category.name}
-                </Link>
-              ))}
-            </div>
-          </details>
+          <HeaderCatalogMenu categories={categories} />
           <CartLink />
         </nav>
       </div>
