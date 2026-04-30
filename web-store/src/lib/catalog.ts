@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
+import { buildCategoryTree, collectDescendantCategoryIds, type CategoryTreeItem, type FlatCategory } from "@/lib/catalog-tree";
 import { prisma } from "@/lib/db";
-import { normalRetailNameWhere } from "@/lib/retail-products";
+import { isDegradedRetailName, normalRetailNameWhere } from "@/lib/retail-products";
 
 const PRODUCTS_PER_PAGE = 24;
 
@@ -22,24 +23,97 @@ export function decimalToNumber(value: unknown): number {
   return Number(value);
 }
 
+async function getActiveCategories(): Promise<FlatCategory[]> {
+  return prisma.category.findMany({
+    where: {
+      isActive: true,
+      isVisible: true,
+    },
+    select: {
+      id: true,
+      parentId: true,
+      name: true,
+      slug: true,
+    },
+    orderBy: {
+      name: "asc",
+    },
+  });
+}
+
+export async function getHeaderCategories() {
+  if (!process.env.DATABASE_URL) {
+    return [];
+  }
+
+  const categories = await prisma.category.findMany({
+    where: {
+      isActive: true,
+      isVisible: true,
+      parentId: null,
+    },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+    },
+    orderBy: {
+      name: "asc",
+    },
+    take: 12,
+  });
+
+  return categories.filter((category) => !isDegradedRetailName(category.name));
+}
+
+async function getCatalogCategoryTree(categories: FlatCategory[]): Promise<CategoryTreeItem[]> {
+  const counts = await prisma.product.groupBy({
+    by: ["categoryId"],
+    where: {
+      categoryId: {
+        not: null,
+      },
+      isActive: true,
+      isVisible: true,
+    },
+    _count: {
+      _all: true,
+    },
+  });
+
+  return buildCategoryTree(
+    categories,
+    new Map(counts.flatMap((row) => (row.categoryId ? [[row.categoryId, row._count._all]] : []))),
+  );
+}
+
+function getExcludedCategoryIds(categories: FlatCategory[]): string[] {
+  return Array.from(
+    new Set(
+      categories
+        .filter((category) => isDegradedRetailName(category.name))
+        .flatMap((category) => collectDescendantCategoryIds(categories, category.id)),
+    ),
+  );
+}
+
 export async function getHomeSnapshot() {
+  const allCategories = await getActiveCategories();
+  const excludedCategoryIds = getExcludedCategoryIds(allCategories);
   const [categories, products] = await Promise.all([
-    prisma.category.findMany({
-      where: {
-        isActive: true,
-        isVisible: true,
-        parentId: null,
-      },
-      orderBy: {
-        name: "asc",
-      },
-      take: 8,
-    }),
+    getCatalogCategoryTree(allCategories),
     prisma.product.findMany({
       where: {
         isActive: true,
         isVisible: true,
         isAvailable: true,
+        ...(excludedCategoryIds.length
+          ? {
+              categoryId: {
+                notIn: excludedCategoryIds,
+              },
+            }
+          : {}),
         retailPrice: {
           not: null,
         },
@@ -66,29 +140,34 @@ export async function getHomeSnapshot() {
 
 export async function getCatalogPage(query: CatalogQuery) {
   const page = Math.max(query.page ?? 1, 1);
-  const where: Prisma.ProductWhereInput = {
+  const allCategories = await getActiveCategories();
+  const excludedCategoryIds = getExcludedCategoryIds(allCategories);
+  const excludedCategoryIdSet = new Set(excludedCategoryIds);
+  const baseWhere: Prisma.ProductWhereInput = {
     isActive: true,
     isVisible: true,
   };
 
-  let category = null;
+  let category: FlatCategory | null = null;
   if (query.categorySlug) {
-    category = await prisma.category.findFirst({
-      where: {
-        slug: query.categorySlug,
-        isActive: true,
-        isVisible: true,
-      },
-    });
+    category = allCategories.find((item) => item.slug === query.categorySlug) ?? null;
 
     if (category) {
-      where.categoryId = category.id;
+      const categoryIds = collectDescendantCategoryIds(allCategories, category.id).filter((id) => !excludedCategoryIdSet.has(id));
+      baseWhere.categoryId = {
+        in: categoryIds.length ? categoryIds : ["__empty_category__"],
+      };
     }
+  } else if (excludedCategoryIds.length) {
+    baseWhere.categoryId = {
+      notIn: excludedCategoryIds,
+    };
   }
 
+  const filteredWhere: Prisma.ProductWhereInput = { ...baseWhere };
   if (query.query) {
     const numericSku = Number(query.query);
-    where.OR = [
+    filteredWhere.OR = [
       { supplierName: { contains: query.query, mode: "insensitive" } },
       { name: { contains: query.query, mode: "insensitive" } },
       { vendor: { contains: query.query, mode: "insensitive" } },
@@ -98,24 +177,31 @@ export async function getCatalogPage(query: CatalogQuery) {
     ];
   }
 
-  if (query.brand) {
-    where.vendor = query.brand;
-  }
-
   if (query.available) {
-    where.isAvailable = true;
+    filteredWhere.isAvailable = true;
   }
 
   if (query.minPrice || query.maxPrice) {
-    where.retailPrice = {
+    filteredWhere.retailPrice = {
       gte: query.minPrice,
       lte: query.maxPrice,
     };
   }
 
+  const brandWhere: Prisma.ProductWhereInput = {
+    ...filteredWhere,
+    vendor: {
+      not: null,
+    },
+  };
+
+  if (query.brand) {
+    filteredWhere.vendor = query.brand;
+  }
+
   const [products, total, categories, brands] = await Promise.all([
     prisma.product.findMany({
-      where,
+      where: filteredWhere,
       include: {
         category: true,
         images: {
@@ -132,26 +218,10 @@ export async function getCatalogPage(query: CatalogQuery) {
       skip: (page - 1) * PRODUCTS_PER_PAGE,
       take: PRODUCTS_PER_PAGE,
     }),
-    prisma.product.count({ where }),
-    prisma.category.findMany({
-      where: {
-        isActive: true,
-        isVisible: true,
-        parentId: null,
-      },
-      orderBy: {
-        name: "asc",
-      },
-      take: 40,
-    }),
+    prisma.product.count({ where: filteredWhere }),
+    getCatalogCategoryTree(allCategories),
     prisma.product.findMany({
-      where: {
-        isActive: true,
-        isVisible: true,
-        vendor: {
-          not: null,
-        },
-      },
+      where: brandWhere,
       distinct: ["vendor"],
       select: {
         vendor: true,

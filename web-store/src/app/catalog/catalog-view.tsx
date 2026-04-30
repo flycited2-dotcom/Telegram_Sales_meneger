@@ -1,8 +1,51 @@
-import type { Category, Product, ProductImage } from "@prisma/client";
+import type { Product, ProductImage } from "@prisma/client";
 import { Search } from "lucide-react";
 import Link from "next/link";
 import { CatalogGrid } from "@/components/catalog-grid";
-import { isDegradedRetailName } from "@/lib/retail-products";
+import type { CategoryTreeItem } from "@/lib/catalog-tree";
+
+function hasActiveCategory(category: CategoryTreeItem, currentCategorySlug?: string): boolean {
+  return category.slug === currentCategorySlug || category.children.some((child) => hasActiveCategory(child, currentCategorySlug));
+}
+
+function CategoryBranch({
+  category,
+  currentCategorySlug,
+  level = 0,
+}: {
+  category: CategoryTreeItem;
+  currentCategorySlug?: string;
+  level?: number;
+}) {
+  const active = category.slug === currentCategorySlug;
+  const expanded = currentCategorySlug ? hasActiveCategory(category, currentCategorySlug) : false;
+
+  return (
+    <div>
+      <Link
+        href={`/catalog/${category.slug}`}
+        aria-current={active ? "page" : undefined}
+        className={[
+          "flex items-center justify-between gap-3 rounded-md py-2 pr-2 text-sm font-medium hover:bg-stone-100",
+          active ? "bg-teal-50 text-teal-900" : "text-zinc-700",
+        ].join(" ")}
+        style={{ paddingLeft: `${8 + level * 14}px` }}
+      >
+        <span className="min-w-0 truncate">{category.name}</span>
+        <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500">
+          {category.productCount.toLocaleString("ru-RU")}
+        </span>
+      </Link>
+      {expanded && category.children.length ? (
+        <div className="mt-1 space-y-1">
+          {category.children.map((child) => (
+            <CategoryBranch key={child.id} category={child} currentCategorySlug={currentCategorySlug} level={level + 1} />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export function CatalogView({
   title,
@@ -12,6 +55,7 @@ export function CatalogView({
   perPage,
   categories,
   brands,
+  currentCategorySlug,
   currentQuery,
   currentBrand,
   onlyAvailable,
@@ -23,8 +67,9 @@ export function CatalogView({
   total: number;
   page: number;
   perPage: number;
-  categories: Category[];
+  categories: CategoryTreeItem[];
   brands: string[];
+  currentCategorySlug?: string;
   currentQuery?: string;
   currentBrand?: string;
   onlyAvailable?: boolean;
@@ -32,7 +77,6 @@ export function CatalogView({
   error?: string;
 }) {
   const totalPages = Math.max(Math.ceil(total / perPage), 1);
-  const visibleCategories = categories.filter((category) => !isDegradedRetailName(category.name));
   const pageHref = (nextPage: number) => {
     const params = new URLSearchParams();
     if (currentQuery) params.set("q", currentQuery);
@@ -61,18 +105,22 @@ export function CatalogView({
 
         <div className="rounded-lg border border-zinc-200 bg-white p-4">
           <p className="text-sm font-bold uppercase tracking-wide text-zinc-500">Категории</p>
-          <div className="mt-3 space-y-1">
-            <Link href="/catalog" className="block rounded-md px-2 py-2 text-sm font-medium text-zinc-700 hover:bg-stone-100">
-              Все товары
+          <div className="mt-3 max-h-[70vh] space-y-1 overflow-auto pr-1">
+            <Link
+              href="/catalog"
+              aria-current={!currentCategorySlug ? "page" : undefined}
+              className={[
+                "flex items-center justify-between rounded-md px-2 py-2 text-sm font-medium hover:bg-stone-100",
+                !currentCategorySlug ? "bg-teal-50 text-teal-900" : "text-zinc-700",
+              ].join(" ")}
+            >
+              <span>Все товары</span>
+              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500">
+                {categories.reduce((sum, category) => sum + category.productCount, 0).toLocaleString("ru-RU")}
+              </span>
             </Link>
-            {visibleCategories.map((category) => (
-              <Link
-                key={category.id}
-                href={`/catalog/${category.slug}`}
-                className="block rounded-md px-2 py-2 text-sm font-medium text-zinc-700 hover:bg-stone-100"
-              >
-                {category.name}
-              </Link>
+            {categories.map((category) => (
+              <CategoryBranch key={category.id} category={category} currentCategorySlug={currentCategorySlug} />
             ))}
           </div>
         </div>

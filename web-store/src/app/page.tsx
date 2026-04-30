@@ -4,8 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { CatalogGrid } from "@/components/catalog-grid";
 import { getHomeSnapshot } from "@/lib/catalog";
-import { isDegradedRetailName } from "@/lib/retail-products";
-import { phoneHref, storefront, storefrontCategories } from "@/lib/storefront";
+import { phoneHref, storefront } from "@/lib/storefront";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +24,7 @@ async function loadHome() {
 
 export default async function Home() {
   const { categories, products } = await loadHome();
-  const visibleCategories = categories.filter((category) => !isDegradedRetailName(category.name)).slice(0, 10);
+  const featuredCategories = categories.slice(0, 10);
 
   return (
     <>
@@ -129,17 +128,19 @@ export default async function Home() {
           </Link>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          {storefrontCategories.map((category) => (
-            <Link key={category} href={`/search?q=${encodeURIComponent(category)}`} className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm hover:border-teal-200 hover:shadow-md">
-              <p className="text-lg font-bold text-zinc-950">{category}</p>
-              <p className="mt-2 text-sm text-zinc-500">Найти товары</p>
+          {featuredCategories.map((category) => (
+            <Link key={category.id} href={`/catalog/${category.slug}`} className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm hover:border-teal-200 hover:shadow-md">
+              <p className="text-lg font-bold text-zinc-950">{category.name}</p>
+              <p className="mt-2 text-sm text-zinc-500">
+                {category.productCount.toLocaleString("ru-RU")} товаров
+              </p>
             </Link>
           ))}
         </div>
 
-        {visibleCategories.length ? (
+        {featuredCategories.length ? (
           <div className="mt-8 flex flex-wrap gap-2">
-            {visibleCategories.map((category) => (
+            {featuredCategories.map((category) => (
               <Link key={category.id} href={`/catalog/${category.slug}`} className="rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 hover:border-teal-300 hover:text-teal-800">
                 {category.name}
               </Link>

@@ -53,6 +53,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       perPage={data.perPage}
       categories={data.categories}
       brands={data.brands}
+      currentCategorySlug={data.category.slug}
       currentQuery={query}
       currentBrand={brand}
       onlyAvailable={onlyAvailable}
