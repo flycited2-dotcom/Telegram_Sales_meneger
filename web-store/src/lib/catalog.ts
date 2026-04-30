@@ -54,9 +54,7 @@ export async function getHomeSnapshot() {
           take: 1,
         },
       },
-      orderBy: {
-        updatedAt: "desc",
-      },
+      orderBy: [{ images: { _count: "desc" } }, { updatedAt: "desc" }],
       take: 8,
     }),
   ]);
@@ -128,7 +126,7 @@ export async function getCatalogPage(query: CatalogQuery) {
           take: 1,
         },
       },
-      orderBy: [{ isAvailable: "desc" }, { updatedAt: "desc" }],
+      orderBy: [{ images: { _count: "desc" } }, { isAvailable: "desc" }, { updatedAt: "desc" }],
       skip: (page - 1) * PRODUCTS_PER_PAGE,
       take: PRODUCTS_PER_PAGE,
     }),

@@ -22,7 +22,7 @@ export default async function ProductPage({ params }: Props) {
 
   const name = product.name ?? product.supplierName;
   const price = decimalToNumber(product.retailPrice);
-  const image = product.images[0]?.localImageUrl;
+  const image = product.images[0]?.localImageUrl ?? product.images[0]?.supplierImageUrl;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">

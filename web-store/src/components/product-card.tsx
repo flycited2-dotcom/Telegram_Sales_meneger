@@ -11,7 +11,7 @@ type ProductCardProduct = Product & {
 
 export function ProductCard({ product }: { product: ProductCardProduct }) {
   const name = product.name ?? product.supplierName;
-  const image = product.images?.[0]?.localImageUrl;
+  const image = product.images?.[0]?.localImageUrl ?? product.images?.[0]?.supplierImageUrl;
   const price = decimalToNumber(product.retailPrice);
 
   return (
