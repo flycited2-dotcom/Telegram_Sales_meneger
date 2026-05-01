@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { buildOrderQuote, type CartInputItem } from "@/lib/checkout/validation";
 import { getProductsForQuote } from "@/lib/catalog";
 import { prisma } from "@/lib/db";
-import { sendTelegramOrderNotification } from "@/lib/telegram";
+import { sendOrderNotificationSafely } from "@/lib/order-notifications";
 
 export type CheckoutInput = {
   customerName: string;
@@ -51,7 +51,7 @@ export async function createLocalOrder(input: CheckoutInput) {
     },
   });
 
-  await sendTelegramOrderNotification({
+  await sendOrderNotificationSafely({
     orderNumber: order.orderNumber,
     customerName: order.customerName,
     phone: order.phone,
