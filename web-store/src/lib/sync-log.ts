@@ -31,6 +31,22 @@ export async function finishSyncLog(
   });
 }
 
+export async function updateSyncLogProgress(
+  id: string,
+  data: {
+    message?: string;
+    total?: number;
+    processed?: number;
+    failed?: number;
+    payload?: Prisma.InputJsonValue;
+  },
+) {
+  return prisma.syncLog.update({
+    where: { id },
+    data,
+  });
+}
+
 export function sanitizePayload(payload: unknown): Prisma.InputJsonValue {
   return JSON.parse(
     JSON.stringify(payload, (key, value) => {

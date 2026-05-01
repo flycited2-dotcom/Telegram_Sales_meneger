@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { itpRpc } from "@/lib/itp/client";
 import { sleep } from "@/lib/itp/utils";
 import type { ItpProductImage } from "@/lib/itp/types";
-import { finishSyncLog, sanitizePayload, startSyncLog } from "@/lib/sync-log";
+import { finishSyncLog, sanitizePayload, startSyncLog, updateSyncLogProgress } from "@/lib/sync-log";
 
 type ProductImagesResponse = {
   product_images: ItpProductImage[];
@@ -18,6 +18,60 @@ export function parseImageSyncLimit(value: string | undefined): number | null {
 
   const limit = Number(normalized);
   return Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : null;
+}
+
+type RetryOptions = {
+  attempts?: number;
+  sleepMs?: number;
+};
+
+function errorText(error: unknown): string {
+  const textParts: string[] = [];
+  let current: unknown = error;
+
+  while (current && typeof current === "object") {
+    const record = current as { message?: unknown; code?: unknown; cause?: unknown };
+    if (typeof record.message === "string") textParts.push(record.message);
+    if (typeof record.code === "string") textParts.push(record.code);
+    current = record.cause;
+  }
+
+  return textParts.join(" ").toLowerCase();
+}
+
+export function isTransientImageSyncError(error: unknown): boolean {
+  const text = errorText(error);
+  return [
+    "fetch failed",
+    "etimedout",
+    "econnreset",
+    "econnrefused",
+    "und_err",
+    "timeout",
+    "socket",
+  ].some((term) => text.includes(term));
+}
+
+export async function runWithImageSyncRetry<T>(
+  operation: () => Promise<T>,
+  { attempts = 5, sleepMs = 2000 }: RetryOptions = {},
+): Promise<T> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (attempt >= attempts || !isTransientImageSyncError(error)) {
+        throw error;
+      }
+
+      await sleep(sleepMs * attempt);
+    }
+  }
+
+  throw lastError;
 }
 
 function supplierImageUrl(path: string): string {
@@ -38,9 +92,16 @@ export async function syncItpImages(limit: number | null = null) {
     const total = limit ? Math.min(limit, availableProducts) : availableProducts;
     const batchSize = 100;
     let scanned = 0;
-    let processed = 0;
+    let processedImages = 0;
     let failed = 0;
     let lastSku: number | undefined;
+
+    await updateSyncLogProgress(log.id, {
+      total,
+      processed: 0,
+      failed: 0,
+      message: `Image metadata sync started for ${total} products.`,
+    });
 
     while (scanned < total) {
       const products = await prisma.product.findMany({
@@ -72,20 +133,22 @@ export async function syncItpImages(limit: number | null = null) {
       lastSku = products[products.length - 1]?.sku;
       const productIdsBySku = new Map(products.map((product) => [product.sku, product.id]));
 
-      const response = await itpRpc<ProductImagesResponse>({
-        request: {
-          method: "read_new",
-          model: "products_clients_images",
-          module: "platform",
-        },
-        filter: [
-          {
-            property: "sku",
-            operator: "IN",
-            value: products.map((product) => product.sku),
+      const response = await runWithImageSyncRetry(() =>
+        itpRpc<ProductImagesResponse>({
+          request: {
+            method: "read_new",
+            model: "products_clients_images",
+            module: "platform",
           },
-        ],
-      });
+          filter: [
+            {
+              property: "sku",
+              operator: "IN",
+              value: products.map((product) => product.sku),
+            },
+          ],
+        }),
+      );
 
       if (!response.success || !response.data) {
         failed += products.length;
@@ -120,7 +183,16 @@ export async function syncItpImages(limit: number | null = null) {
             isPrimary: image.priority <= 100,
           },
         });
-        processed += 1;
+        processedImages += 1;
+      }
+
+      if (scanned % 1000 === 0 || scanned >= total) {
+        await updateSyncLogProgress(log.id, {
+          total,
+          processed: scanned,
+          failed,
+          message: `Scanned ${scanned}/${total} products, synchronized ${processedImages} image records.`,
+        });
       }
 
       await sleep(500);
@@ -129,14 +201,14 @@ export async function syncItpImages(limit: number | null = null) {
     await finishSyncLog(log.id, {
       status: failed ? "error" : "success",
       total,
-      processed,
+      processed: scanned,
       failed,
-      message: `Image metadata synchronized for ${scanned} products with supplier images.`,
+      message: `Image metadata synchronized for ${scanned} products with supplier images. Upserted ${processedImages} image records.`,
     });
 
     return {
       total,
-      processed,
+      processed: processedImages,
       failed,
     };
   } catch (error) {
