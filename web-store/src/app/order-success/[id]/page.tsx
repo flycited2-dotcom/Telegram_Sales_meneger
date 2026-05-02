@@ -27,12 +27,15 @@ export default async function OrderSuccessPage({ params }: Props) {
       <div className="rounded-lg border border-emerald-200 bg-white p-8 shadow-sm">
         <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700">Заказ создан</p>
         <h1 className="mt-2 text-3xl font-black text-zinc-950">{order.orderNumber}</h1>
-        <p className="mt-3 text-zinc-600">Спасибо за заказ. Менеджер свяжется с вами, подтвердит наличие, срок доставки и детали получения.</p>
+        <p className="mt-3 text-zinc-600">
+          Спасибо за заявку. Менеджер свяжется с вами, подтвердит наличие у поставщика, доставку под заказ 7 дней и детали получения.
+        </p>
         <div className="mt-6 divide-y divide-zinc-100">
           {order.items.map((item) => (
             <div key={item.id} className="flex justify-between gap-4 py-3 text-sm">
               <span>
                 SKU {item.sku} · {item.name} x {item.quantity}
+                <span className="mt-1 block text-xs text-emerald-700">Доставка под заказ 7 дней</span>
               </span>
               <strong>{formatRub(Number(item.total))}</strong>
             </div>

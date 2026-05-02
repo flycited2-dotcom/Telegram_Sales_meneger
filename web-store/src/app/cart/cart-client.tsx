@@ -4,6 +4,7 @@ import { Minus, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { writeCart } from "@/lib/cart-storage";
+import { publicFulfillmentText } from "@/lib/fulfillment";
 import { formatRub } from "@/lib/format";
 import { useCart } from "@/lib/use-cart";
 
@@ -24,6 +25,7 @@ export function CartClient() {
   const cart = useCart();
   const [quote, setQuote] = useState<Quote | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const fulfillment = publicFulfillmentText({ isAvailable: true });
 
   useEffect(() => {
     if (!cart.length) {
@@ -86,6 +88,9 @@ export function CartClient() {
               <div className="min-w-0 flex-1">
                 <p className="font-semibold text-zinc-950">{item?.name ?? `SKU ${cartItem.sku}`}</p>
                 <p className="mt-1 text-sm text-zinc-500">SKU {cartItem.sku}</p>
+                <p className="mt-1 text-sm text-emerald-700">
+                  {fulfillment.stockLabel} · {fulfillment.deliveryShortLabel}
+                </p>
               </div>
               <div className="flex items-center rounded-lg border border-zinc-200">
                 <button className="p-2 hover:bg-zinc-50" onClick={() => updateQuantity(cartItem.sku, -1)} aria-label="Уменьшить">
@@ -108,7 +113,10 @@ export function CartClient() {
       <aside className="h-fit rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
         <p className="text-sm font-bold uppercase tracking-wide text-zinc-500">Итого</p>
         <div className="mt-3 text-3xl font-black text-zinc-950">{quote ? formatRub(quote.total) : "..."}</div>
-        <p className="mt-2 text-sm text-zinc-500">Менеджер подтвердит заказ и доставку. Оплата при получении.</p>
+        <p className="mt-2 text-sm text-zinc-500">
+          Это заявка на заказ. Менеджер подтвердит наличие у поставщика, доставку под заказ 7 дней и итоговую стоимость.
+        </p>
+        <p className="mt-2 text-sm text-zinc-500">Оплата после подтверждения заказа.</p>
         {error ? <p className="mt-3 rounded-md bg-amber-50 p-3 text-sm text-amber-900">{error}</p> : null}
         <Link
           href="/checkout"
