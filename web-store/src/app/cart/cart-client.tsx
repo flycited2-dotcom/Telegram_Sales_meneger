@@ -53,6 +53,7 @@ export function CartClient() {
   }, [cart]);
 
   const quotedBySku = useMemo(() => new Map(quote?.items.map((item) => [item.sku, item]) ?? []), [quote]);
+  const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   function updateQuantity(sku: number, delta: number) {
     const next = cart
@@ -64,6 +65,10 @@ export function CartClient() {
   function removeItem(sku: number) {
     const next = cart.filter((item) => item.sku !== sku);
     writeCart(next);
+  }
+
+  function clearCart() {
+    writeCart([]);
   }
 
   if (!cart.length) {
@@ -81,6 +86,25 @@ export function CartClient() {
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
       <section className="rounded-lg border border-zinc-200 bg-white">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 p-4">
+          <div>
+            <h1 className="text-2xl font-black text-zinc-950">Корзина</h1>
+            <p className="mt-1 text-sm text-zinc-500">
+              {totalQuantity.toLocaleString("ru-RU")} шт. в заявке. Менеджер подтвердит цену и срок перед оплатой.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/catalog" className="inline-flex h-10 items-center rounded-lg border border-zinc-200 px-4 text-sm font-semibold hover:bg-zinc-50">
+              Продолжить покупки
+            </Link>
+            <button
+              className="inline-flex h-10 items-center rounded-lg border border-red-100 px-4 text-sm font-semibold text-red-700 hover:bg-red-50"
+              onClick={clearCart}
+            >
+              Очистить корзину
+            </button>
+          </div>
+        </div>
         {cart.map((cartItem) => {
           const item = quotedBySku.get(cartItem.sku);
           return (
@@ -118,11 +142,20 @@ export function CartClient() {
         </p>
         <p className="mt-2 text-sm text-zinc-500">Оплата после подтверждения заказа.</p>
         {error ? <p className="mt-3 rounded-md bg-amber-50 p-3 text-sm text-amber-900">{error}</p> : null}
-        <Link
-          href="/checkout"
-          className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-lg bg-zinc-950 text-sm font-semibold text-white hover:bg-teal-800"
-        >
-          Оформить заказ
+        {quote && !error ? (
+          <Link
+            href="/checkout"
+            className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-lg bg-zinc-950 text-sm font-semibold text-white hover:bg-teal-800"
+          >
+            Перейти к оформлению заявки
+          </Link>
+        ) : (
+          <span className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-lg bg-zinc-200 text-sm font-semibold text-zinc-500">
+            Проверяем корзину
+          </span>
+        )}
+        <Link href="/catalog" className="mt-3 inline-flex w-full justify-center text-sm font-semibold text-teal-800 hover:text-teal-950">
+          Добавить ещё товары
         </Link>
       </aside>
     </div>
