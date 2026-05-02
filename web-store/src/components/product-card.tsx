@@ -4,6 +4,7 @@ import { AddToCartButton } from "@/components/add-to-cart-button";
 import { ProductImageFallback } from "@/components/product-image-fallback";
 import { StockBadge } from "@/components/stock-badge";
 import { decimalToNumber } from "@/lib/catalog";
+import { publicFulfillmentText } from "@/lib/fulfillment";
 import { formatRub } from "@/lib/format";
 import { productImageSrc } from "@/lib/product-images";
 
@@ -15,6 +16,7 @@ export function ProductCard({ product }: { product: ProductCardProduct }) {
   const name = product.name ?? product.supplierName;
   const image = productImageSrc(product.images?.[0]);
   const price = decimalToNumber(product.retailPrice);
+  const fulfillment = publicFulfillmentText({ isAvailable: product.isAvailable && Boolean(price) });
 
   return (
     <article className="group flex min-h-[420px] flex-col rounded-lg border border-zinc-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-md">
@@ -31,12 +33,15 @@ export function ProductCard({ product }: { product: ProductCardProduct }) {
       <div className="mt-4 flex flex-1 flex-col">
         <div className="flex items-start justify-between gap-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-teal-700">{product.vendor ?? "Товар"}</p>
-          <StockBadge state={product.stockStatus} />
+          <StockBadge state={product.stockStatus} label={fulfillment.stockShortLabel} />
         </div>
         <Link href={`/product/${product.slug}`} className="mt-2 line-clamp-3 text-sm font-semibold leading-5 text-zinc-950 hover:text-teal-800">
           {name}
         </Link>
         <div className="mt-3 text-xs text-zinc-500">SKU {product.sku}</div>
+        <div className="mt-2 rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-800">
+          {fulfillment.deliveryShortLabel}
+        </div>
         {product.multiplicity > 1 ? (
           <div className="mt-2 rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-800">Заказ кратно {product.multiplicity} шт.</div>
         ) : null}
@@ -45,7 +50,7 @@ export function ProductCard({ product }: { product: ProductCardProduct }) {
           <AddToCartButton
             sku={product.sku}
             multiplicity={product.multiplicity}
-            disabled={!product.isAvailable || !price}
+            disabled={!fulfillment.canOrder || !price}
             compact
           />
         </div>
