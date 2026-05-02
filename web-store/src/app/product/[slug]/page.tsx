@@ -61,6 +61,7 @@ export default async function ProductPage({ params }: Props) {
   });
   const facts = buildProductFacts({
     sku: product.sku,
+    title: name,
     categoryName,
     vendor: product.vendor,
     part: product.part,

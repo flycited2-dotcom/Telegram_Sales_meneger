@@ -47,9 +47,32 @@ describe("buildProductFacts", () => {
     expect(facts).toContainEqual({ label: "Срок поставки", value: "Под заказ 7 дней" });
     expect(facts.map((fact) => fact.value).join(" ")).not.toContain("день в день");
   });
+
+  it("adds obvious extracted specs from the product title", () => {
+    expect(
+      buildProductFacts({
+        sku: 123,
+        title: "Осушитель воздуха Ballu Vector BD-30L VT белый, 30 л/сутки, 4 л",
+      }),
+    ).toEqual([
+      { label: "SKU", value: "123" },
+      { label: "Производительность", value: "30 л/сутки" },
+      { label: "Объем бака", value: "4 л" },
+      { label: "Срок поставки", value: "Под заказ 7 дней" },
+    ]);
+  });
 });
 
 describe("buildProductCardHighlights", () => {
+  it("prioritizes extracted specs in catalog cards", () => {
+    expect(
+      buildProductCardHighlights({
+        title: 'Телевизор Samsung UE55CU7100U 55" 4K UHD Smart TV',
+        warranty: "12",
+      }),
+    ).toEqual(['55"', "4K UHD", "Гарантия 12 мес."]);
+  });
+
   it("selects short useful facts for catalog cards", () => {
     expect(
       buildProductCardHighlights({

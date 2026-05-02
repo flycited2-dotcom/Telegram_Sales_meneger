@@ -1,4 +1,5 @@
 import { publicFulfillmentText } from "@/lib/fulfillment";
+import { extractProductNameSpecs } from "@/lib/product-name-specs";
 
 export type ProductFact = {
   label: string;
@@ -7,6 +8,7 @@ export type ProductFact = {
 
 export type ProductFactInput = {
   sku: number;
+  title?: string | null;
   categoryName?: string | null;
   vendor?: string | null;
   part?: string | null;
@@ -28,7 +30,7 @@ export type ProductDescriptionInput = {
   multiplicity?: number | null;
 };
 
-export type ProductCardHighlightInput = Pick<ProductFactInput, "part" | "warranty" | "weight" | "volume" | "multiplicity">;
+export type ProductCardHighlightInput = Pick<ProductFactInput, "title" | "part" | "warranty" | "weight" | "volume" | "multiplicity">;
 
 export function warrantyLabel(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
@@ -73,6 +75,9 @@ export function buildProductFacts(product: ProductFactInput): ProductFact[] {
   const facts: ProductFact[] = [];
 
   pushFact(facts, "SKU", product.sku);
+  for (const spec of extractProductNameSpecs(product.title)) {
+    pushFact(facts, spec.label, spec.value);
+  }
   pushFact(facts, "Категория", product.categoryName);
   pushFact(facts, "Бренд", product.vendor);
   pushFact(facts, "Партномер", product.part);
@@ -88,6 +93,7 @@ export function buildProductFacts(product: ProductFactInput): ProductFact[] {
 
 export function buildProductCardHighlights(product: ProductCardHighlightInput): string[] {
   const highlights = [
+    ...extractProductNameSpecs(product.title).map((spec) => spec.value),
     warrantyLabel(product.warranty) ? `Гарантия ${warrantyLabel(product.warranty)}` : null,
     product.weight ? `${trimNumber(product.weight, 3)} кг` : null,
     product.multiplicity && product.multiplicity > 1 ? `Кратно ${product.multiplicity} шт.` : null,

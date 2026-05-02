@@ -19,6 +19,7 @@ export function ProductCard({ product }: { product: ProductCardProduct }) {
   const price = decimalToNumber(product.retailPrice);
   const fulfillment = publicFulfillmentText({ isAvailable: product.isAvailable && Boolean(price) });
   const highlights = buildProductCardHighlights({
+    title: name,
     part: product.part,
     warranty: product.warranty,
     weight: product.weight,
