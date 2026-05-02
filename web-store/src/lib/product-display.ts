@@ -28,6 +28,8 @@ export type ProductDescriptionInput = {
   multiplicity?: number | null;
 };
 
+export type ProductCardHighlightInput = Pick<ProductFactInput, "part" | "warranty" | "weight" | "volume" | "multiplicity">;
+
 export function warrantyLabel(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
   if (!trimmed) return null;
@@ -82,6 +84,18 @@ export function buildProductFacts(product: ProductFactInput): ProductFact[] {
   pushFact(facts, "Срок поставки", publicFulfillmentText({ isAvailable: true }).deliveryShortLabel);
 
   return facts;
+}
+
+export function buildProductCardHighlights(product: ProductCardHighlightInput): string[] {
+  const highlights = [
+    warrantyLabel(product.warranty) ? `Гарантия ${warrantyLabel(product.warranty)}` : null,
+    product.weight ? `${trimNumber(product.weight, 3)} кг` : null,
+    product.multiplicity && product.multiplicity > 1 ? `Кратно ${product.multiplicity} шт.` : null,
+    volumeLabel(product.volume),
+    product.part ? `Арт. ${product.part}` : null,
+  ].filter(Boolean) as string[];
+
+  return highlights.slice(0, 3);
 }
 
 export function productDescriptionText(description: string | null | undefined, product?: ProductDescriptionInput): string {

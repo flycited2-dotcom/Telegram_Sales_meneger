@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildProductFacts, productDescriptionText, warrantyLabel } from "@/lib/product-display";
+import { buildProductCardHighlights, buildProductFacts, productDescriptionText, warrantyLabel } from "@/lib/product-display";
 
 describe("warrantyLabel", () => {
   it("hides zero warranties and formats real warranty values", () => {
@@ -46,6 +46,23 @@ describe("buildProductFacts", () => {
 
     expect(facts).toContainEqual({ label: "Срок поставки", value: "Под заказ 7 дней" });
     expect(facts.map((fact) => fact.value).join(" ")).not.toContain("день в день");
+  });
+});
+
+describe("buildProductCardHighlights", () => {
+  it("selects short useful facts for catalog cards", () => {
+    expect(
+      buildProductCardHighlights({
+        warranty: "12",
+        weight: 2.5,
+        volume: 0.009044,
+        multiplicity: 2,
+      }),
+    ).toEqual(["Гарантия 12 мес.", "2.5 кг", "Кратно 2 шт."]);
+  });
+
+  it("falls back to part number when physical facts are missing", () => {
+    expect(buildProductCardHighlights({ part: "ABC-1" })).toEqual(["Арт. ABC-1"]);
   });
 });
 

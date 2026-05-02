@@ -6,6 +6,7 @@ import { StockBadge } from "@/components/stock-badge";
 import { decimalToNumber } from "@/lib/catalog";
 import { publicFulfillmentText } from "@/lib/fulfillment";
 import { formatRub } from "@/lib/format";
+import { buildProductCardHighlights } from "@/lib/product-display";
 import { productImageSrc } from "@/lib/product-images";
 
 type ProductCardProduct = Product & {
@@ -17,6 +18,13 @@ export function ProductCard({ product }: { product: ProductCardProduct }) {
   const image = productImageSrc(product.images?.[0]);
   const price = decimalToNumber(product.retailPrice);
   const fulfillment = publicFulfillmentText({ isAvailable: product.isAvailable && Boolean(price) });
+  const highlights = buildProductCardHighlights({
+    part: product.part,
+    warranty: product.warranty,
+    weight: product.weight,
+    volume: product.volume,
+    multiplicity: product.multiplicity,
+  });
 
   return (
     <article className="group flex min-h-[420px] flex-col rounded-lg border border-zinc-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-md">
@@ -42,8 +50,14 @@ export function ProductCard({ product }: { product: ProductCardProduct }) {
         <div className="mt-2 rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-800">
           {fulfillment.deliveryShortLabel}
         </div>
-        {product.multiplicity > 1 ? (
-          <div className="mt-2 rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-800">Заказ кратно {product.multiplicity} шт.</div>
+        {highlights.length ? (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {highlights.map((highlight) => (
+              <span key={highlight} className="rounded-full bg-stone-100 px-2 py-1 text-xs font-medium text-zinc-600">
+                {highlight}
+              </span>
+            ))}
+          </div>
         ) : null}
         <div className="mt-auto pt-4">
           <div className="mb-3 text-xl font-bold text-zinc-950">{price ? formatRub(price) : "Цена уточняется"}</div>

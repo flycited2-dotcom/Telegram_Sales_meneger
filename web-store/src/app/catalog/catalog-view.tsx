@@ -1,9 +1,42 @@
 import type { Product, ProductImage } from "@prisma/client";
-import { ChevronDown, Phone, Search, ShieldCheck, SlidersHorizontal, Truck } from "lucide-react";
+import { ArrowUpDown, ChevronDown, Image as ImageIcon, Phone, Search, ShieldCheck, SlidersHorizontal, Truck, X } from "lucide-react";
 import Link from "next/link";
 import { CatalogGrid } from "@/components/catalog-grid";
 import type { CategoryTreeItem } from "@/lib/catalog-tree";
+import type { CatalogSort } from "@/lib/catalog-query";
 import { phoneHref, storefront } from "@/lib/storefront";
+
+const catalogSortLabels: Record<CatalogSort, string> = {
+  popular: "Сначала рекомендуемые",
+  price_asc: "Сначала дешевле",
+  price_desc: "Сначала дороже",
+  new: "Сначала обновленные",
+};
+
+type CatalogUrlState = {
+  query?: string;
+  brand?: string;
+  onlyAvailable?: boolean;
+  withPhoto?: boolean;
+  minPrice?: number;
+  maxPrice?: number;
+  sort?: CatalogSort;
+  page?: number;
+};
+
+function catalogHref(basePath: string, state: CatalogUrlState): string {
+  const params = new URLSearchParams();
+  if (state.query) params.set("q", state.query);
+  if (state.brand) params.set("brand", state.brand);
+  if (state.onlyAvailable) params.set("available", "1");
+  if (state.withPhoto) params.set("photo", "1");
+  if (state.minPrice) params.set("minPrice", String(state.minPrice));
+  if (state.maxPrice) params.set("maxPrice", String(state.maxPrice));
+  if (state.sort && state.sort !== "popular") params.set("sort", state.sort);
+  if (state.page && state.page > 1) params.set("page", String(state.page));
+  const query = params.toString();
+  return query ? `${basePath}?${query}` : basePath;
+}
 
 function hasActiveCategory(category: CategoryTreeItem, currentCategorySlug?: string): boolean {
   return category.slug === currentCategorySlug || category.children.some((child) => hasActiveCategory(child, currentCategorySlug));
@@ -113,8 +146,10 @@ function FiltersPanel({
   currentBrand,
   currentQuery,
   onlyAvailable,
+  withPhoto,
   minPrice,
   maxPrice,
+  sort,
   framed = true,
 }: {
   basePath: string;
@@ -122,11 +157,13 @@ function FiltersPanel({
   currentBrand?: string;
   currentQuery?: string;
   onlyAvailable?: boolean;
+  withPhoto?: boolean;
   minPrice?: number;
   maxPrice?: number;
+  sort: CatalogSort;
   framed?: boolean;
 }) {
-  const hasFilters = Boolean(currentBrand || currentQuery || onlyAvailable || minPrice || maxPrice);
+  const hasFilters = Boolean(currentBrand || currentQuery || onlyAvailable || withPhoto || minPrice || maxPrice || sort !== "popular");
 
   return (
     <form action={basePath} className={framed ? "rounded-lg border border-zinc-200 bg-white p-4" : ""}>
@@ -139,6 +176,7 @@ function FiltersPanel({
         ) : null}
       </div>
       {currentQuery ? <input type="hidden" name="q" value={currentQuery} /> : null}
+      {sort !== "popular" ? <input type="hidden" name="sort" value={sort} /> : null}
       <label className="mt-4 block text-sm font-medium text-zinc-700">
         Бренд
         <select name="brand" defaultValue={currentBrand ?? ""} className="mt-2 h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm">
@@ -176,6 +214,10 @@ function FiltersPanel({
         <input name="available" value="1" type="checkbox" defaultChecked={onlyAvailable} className="size-4 accent-teal-700" />
         Только в наличии
       </label>
+      <label className="mt-3 flex items-center gap-2 text-sm text-zinc-700">
+        <input name="photo" value="1" type="checkbox" defaultChecked={withPhoto} className="size-4 accent-teal-700" />
+        Только с фото
+      </label>
       <button className="mt-4 h-10 w-full rounded-lg bg-zinc-950 text-sm font-semibold text-white hover:bg-teal-800">
         Применить
       </button>
@@ -211,6 +253,185 @@ function CatalogTrustStrip() {
   );
 }
 
+function QuickCategoryRail({
+  categories,
+  currentCategorySlug,
+}: {
+  categories: CategoryTreeItem[];
+  currentCategorySlug?: string;
+}) {
+  const visibleCategories = categories.slice(0, 10);
+  if (!visibleCategories.length) return null;
+
+  return (
+    <div className="mb-5 flex gap-2 overflow-x-auto pb-1">
+      <Link
+        href="/catalog"
+        aria-current={!currentCategorySlug ? "page" : undefined}
+        className={[
+          "shrink-0 rounded-full border px-3 py-2 text-sm font-semibold",
+          !currentCategorySlug ? "border-teal-200 bg-teal-50 text-teal-900" : "border-zinc-200 bg-white text-zinc-700 hover:border-teal-200",
+        ].join(" ")}
+      >
+        Все товары
+      </Link>
+      {visibleCategories.map((category) => (
+        <Link
+          key={category.id}
+          href={`/catalog/${category.slug}`}
+          aria-current={category.slug === currentCategorySlug ? "page" : undefined}
+          className={[
+            "shrink-0 rounded-full border px-3 py-2 text-sm font-semibold",
+            category.slug === currentCategorySlug
+              ? "border-teal-200 bg-teal-50 text-teal-900"
+              : "border-zinc-200 bg-white text-zinc-700 hover:border-teal-200",
+          ].join(" ")}
+        >
+          {category.name}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function CatalogControls({
+  basePath,
+  state,
+}: {
+  basePath: string;
+  state: CatalogUrlState & { sort: CatalogSort };
+}) {
+  return (
+    <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-white p-3">
+      <div className="flex flex-wrap gap-2">
+        <Link
+          href={catalogHref(basePath, { ...state, onlyAvailable: true, page: 1 })}
+          className={[
+            "inline-flex h-9 items-center gap-2 rounded-full border px-3 text-sm font-semibold",
+            state.onlyAvailable ? "border-teal-200 bg-teal-50 text-teal-900" : "border-zinc-200 text-zinc-700 hover:border-teal-200",
+          ].join(" ")}
+        >
+          <ShieldCheck className="size-4" aria-hidden />
+          В наличии
+        </Link>
+        <Link
+          href={catalogHref(basePath, { ...state, withPhoto: true, page: 1 })}
+          className={[
+            "inline-flex h-9 items-center gap-2 rounded-full border px-3 text-sm font-semibold",
+            state.withPhoto ? "border-teal-200 bg-teal-50 text-teal-900" : "border-zinc-200 text-zinc-700 hover:border-teal-200",
+          ].join(" ")}
+        >
+          <ImageIcon className="size-4" aria-hidden />
+          С фото
+        </Link>
+        <Link
+          href={catalogHref(basePath, { ...state, maxPrice: 10000, page: 1 })}
+          className={[
+            "inline-flex h-9 items-center rounded-full border px-3 text-sm font-semibold",
+            state.maxPrice === 10000 ? "border-teal-200 bg-teal-50 text-teal-900" : "border-zinc-200 text-zinc-700 hover:border-teal-200",
+          ].join(" ")}
+        >
+          До 10 000 ₽
+        </Link>
+      </div>
+
+      <form action={basePath} className="flex min-w-[260px] items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5">
+        <ArrowUpDown className="size-4 shrink-0 text-zinc-500" aria-hidden />
+        {state.query ? <input type="hidden" name="q" value={state.query} /> : null}
+        {state.brand ? <input type="hidden" name="brand" value={state.brand} /> : null}
+        {state.onlyAvailable ? <input type="hidden" name="available" value="1" /> : null}
+        {state.withPhoto ? <input type="hidden" name="photo" value="1" /> : null}
+        {state.minPrice ? <input type="hidden" name="minPrice" value={state.minPrice} /> : null}
+        {state.maxPrice ? <input type="hidden" name="maxPrice" value={state.maxPrice} /> : null}
+        <label className="sr-only" htmlFor="catalog-sort">
+          Сортировка
+        </label>
+        <select id="catalog-sort" name="sort" defaultValue={state.sort} className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-zinc-800">
+          {Object.entries(catalogSortLabels).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+        <button className="rounded-full bg-zinc-950 px-3 py-1 text-xs font-semibold text-white hover:bg-teal-800">Ок</button>
+      </form>
+    </div>
+  );
+}
+
+function ActiveFilterChips({
+  basePath,
+  state,
+}: {
+  basePath: string;
+  state: CatalogUrlState & { sort: CatalogSort };
+}) {
+  const chips = [
+    state.query
+      ? {
+          label: `Поиск: ${state.query}`,
+          href: catalogHref(basePath, { ...state, query: undefined, page: 1 }),
+        }
+      : null,
+    state.brand
+      ? {
+          label: `Бренд: ${state.brand}`,
+          href: catalogHref(basePath, { ...state, brand: undefined, page: 1 }),
+        }
+      : null,
+    state.onlyAvailable
+      ? {
+          label: "В наличии",
+          href: catalogHref(basePath, { ...state, onlyAvailable: false, page: 1 }),
+        }
+      : null,
+    state.withPhoto
+      ? {
+          label: "С фото",
+          href: catalogHref(basePath, { ...state, withPhoto: false, page: 1 }),
+        }
+      : null,
+    state.minPrice
+      ? {
+          label: `От ${state.minPrice.toLocaleString("ru-RU")} ₽`,
+          href: catalogHref(basePath, { ...state, minPrice: undefined, page: 1 }),
+        }
+      : null,
+    state.maxPrice
+      ? {
+          label: `До ${state.maxPrice.toLocaleString("ru-RU")} ₽`,
+          href: catalogHref(basePath, { ...state, maxPrice: undefined, page: 1 }),
+        }
+      : null,
+    state.sort !== "popular"
+      ? {
+          label: catalogSortLabels[state.sort],
+          href: catalogHref(basePath, { ...state, sort: "popular", page: 1 }),
+        }
+      : null,
+  ].filter(Boolean) as Array<{ label: string; href: string }>;
+
+  if (!chips.length) return null;
+
+  return (
+    <div className="mb-5 flex flex-wrap items-center gap-2">
+      {chips.map((chip) => (
+        <Link
+          key={chip.label}
+          href={chip.href}
+          className="inline-flex h-8 items-center gap-1.5 rounded-full bg-zinc-100 px-3 text-xs font-semibold text-zinc-700 hover:bg-zinc-200"
+        >
+          {chip.label}
+          <X className="size-3.5" aria-hidden />
+        </Link>
+      ))}
+      <Link href={basePath} className="inline-flex h-8 items-center rounded-full px-3 text-xs font-semibold text-teal-800 hover:bg-teal-50">
+        Сбросить всё
+      </Link>
+    </div>
+  );
+}
+
 export function CatalogView({
   title,
   products,
@@ -223,8 +444,10 @@ export function CatalogView({
   currentQuery,
   currentBrand,
   onlyAvailable,
+  withPhoto,
   minPrice,
   maxPrice,
+  sort = "popular",
   basePath = "/catalog",
   error,
 }: {
@@ -239,22 +462,25 @@ export function CatalogView({
   currentQuery?: string;
   currentBrand?: string;
   onlyAvailable?: boolean;
+  withPhoto?: boolean;
   minPrice?: number;
   maxPrice?: number;
+  sort?: CatalogSort;
   basePath?: string;
   error?: string;
 }) {
   const totalPages = Math.max(Math.ceil(total / perPage), 1);
+  const state = {
+    query: currentQuery,
+    brand: currentBrand,
+    onlyAvailable,
+    withPhoto,
+    minPrice,
+    maxPrice,
+    sort,
+  };
   const pageHref = (nextPage: number) => {
-    const params = new URLSearchParams();
-    if (currentQuery) params.set("q", currentQuery);
-    if (currentBrand) params.set("brand", currentBrand);
-    if (onlyAvailable) params.set("available", "1");
-    if (minPrice) params.set("minPrice", String(minPrice));
-    if (maxPrice) params.set("maxPrice", String(maxPrice));
-    if (nextPage > 1) params.set("page", String(nextPage));
-    const query = params.toString();
-    return query ? `${basePath}?${query}` : basePath;
+    return catalogHref(basePath, { ...state, page: nextPage });
   };
 
   return (
@@ -269,9 +495,12 @@ export function CatalogView({
         </div>
 
         <CatalogTrustStrip />
+        <QuickCategoryRail categories={categories} currentCategorySlug={currentCategorySlug} />
+        <CatalogControls basePath={basePath} state={state} />
+        <ActiveFilterChips basePath={basePath} state={state} />
 
         <div className="mb-6 grid gap-3 lg:hidden">
-          <details open={Boolean(currentQuery || currentBrand || onlyAvailable)} className="rounded-lg border border-zinc-200 bg-white p-4">
+          <details open={Boolean(currentQuery || currentBrand || onlyAvailable || withPhoto || minPrice || maxPrice || sort !== "popular")} className="rounded-lg border border-zinc-200 bg-white p-4">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-bold uppercase tracking-wide text-zinc-600 [&::-webkit-details-marker]:hidden">
               <span className="inline-flex items-center gap-2">
                 <SlidersHorizontal className="size-4" aria-hidden />
@@ -287,8 +516,10 @@ export function CatalogView({
                 currentBrand={currentBrand}
                 currentQuery={currentQuery}
                 onlyAvailable={onlyAvailable}
+                withPhoto={withPhoto}
                 minPrice={minPrice}
                 maxPrice={maxPrice}
+                sort={sort}
                 framed={false}
               />
             </div>
@@ -337,8 +568,10 @@ export function CatalogView({
           currentBrand={currentBrand}
           currentQuery={currentQuery}
           onlyAvailable={onlyAvailable}
+          withPhoto={withPhoto}
           minPrice={minPrice}
           maxPrice={maxPrice}
+          sort={sort}
         />
         </div>
       </aside>

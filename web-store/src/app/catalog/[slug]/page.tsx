@@ -36,9 +36,11 @@ export default async function CategoryPage({ params, searchParams }: Props) {
     query: filters.query,
     brand: filters.brand,
     available: filters.onlyAvailable,
+    withPhoto: filters.withPhoto,
     minPrice: filters.minPrice,
     maxPrice: filters.maxPrice,
     page: filters.page,
+    sort: filters.sort,
   });
 
   if (!data.category) {
@@ -58,8 +60,10 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       currentQuery={filters.query}
       currentBrand={filters.brand}
       onlyAvailable={filters.onlyAvailable}
+      withPhoto={filters.withPhoto}
       minPrice={filters.minPrice}
       maxPrice={filters.maxPrice}
+      sort={filters.sort}
       basePath={`/catalog/${data.category.slug}`}
     />
   );

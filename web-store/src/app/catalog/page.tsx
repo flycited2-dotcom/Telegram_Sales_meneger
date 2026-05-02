@@ -24,9 +24,11 @@ export default async function CatalogPage({ searchParams }: Props) {
       query: filters.query,
       brand: filters.brand,
       available: filters.onlyAvailable,
+      withPhoto: filters.withPhoto,
       minPrice: filters.minPrice,
       maxPrice: filters.maxPrice,
       page: filters.page,
+      sort: filters.sort,
     });
   } catch {
     return (
@@ -55,8 +57,10 @@ export default async function CatalogPage({ searchParams }: Props) {
       currentQuery={filters.query}
       currentBrand={filters.brand}
       onlyAvailable={filters.onlyAvailable}
+      withPhoto={filters.withPhoto}
       minPrice={filters.minPrice}
       maxPrice={filters.maxPrice}
+      sort={filters.sort}
     />
   );
 }
