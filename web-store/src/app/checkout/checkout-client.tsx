@@ -27,6 +27,10 @@ export function CheckoutClient() {
   return (
     <form action={action} className="grid gap-4 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
       <input type="hidden" name="cartItems" value={cartJson} />
+      <div className="rounded-md bg-emerald-50 p-4 text-sm leading-6 text-emerald-900">
+        После отправки заявки менеджер свяжется с вами, подтвердит наличие у поставщика, доставку под заказ 7 дней и итоговую стоимость.
+        Оплата после подтверждения заказа.
+      </div>
       <label className="grid gap-2 text-sm font-medium text-zinc-700">
         Имя
         <input name="customerName" required className="h-11 rounded-lg border border-zinc-200 px-3 text-zinc-950" />
@@ -54,7 +58,7 @@ export function CheckoutClient() {
       </label>
       {state.error ? <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{state.error}</p> : null}
       <button disabled={pending} className="h-12 rounded-lg bg-teal-700 text-sm font-bold text-white hover:bg-teal-800 disabled:bg-zinc-300">
-        {pending ? "Создаем заказ..." : "Подтвердить заказ"}
+        {pending ? "Отправляем заявку..." : "Отправить заявку"}
       </button>
     </form>
   );

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildProductFacts, productDescriptionText, warrantyLabel } from "@/lib/product-display";
+import { buildProductCardHighlights, buildProductFacts, productDescriptionText, warrantyLabel } from "@/lib/product-display";
 
 describe("warrantyLabel", () => {
   it("hides zero warranties and formats real warranty values", () => {
@@ -34,8 +34,58 @@ describe("buildProductFacts", () => {
       { label: "Вес", value: "2.5 кг" },
       { label: "Объем упаковки", value: "0.009 м³" },
       { label: "Кратность заказа", value: "2 шт." },
-      { label: "Срок поставки", value: "3 дня" },
+      { label: "Срок поставки", value: "Под заказ 7 дней" },
     ]);
+  });
+
+  it("never exposes same-day delivery copy in public facts", () => {
+    const facts = buildProductFacts({
+      sku: 123,
+      deliveryDays: 0,
+    });
+
+    expect(facts).toContainEqual({ label: "Срок поставки", value: "Под заказ 7 дней" });
+    expect(facts.map((fact) => fact.value).join(" ")).not.toContain("день в день");
+  });
+
+  it("adds obvious extracted specs from the product title", () => {
+    expect(
+      buildProductFacts({
+        sku: 123,
+        title: "Осушитель воздуха Ballu Vector BD-30L VT белый, 30 л/сутки, 4 л",
+      }),
+    ).toEqual([
+      { label: "SKU", value: "123" },
+      { label: "Производительность", value: "30 л/сутки" },
+      { label: "Объем бака", value: "4 л" },
+      { label: "Срок поставки", value: "Под заказ 7 дней" },
+    ]);
+  });
+});
+
+describe("buildProductCardHighlights", () => {
+  it("prioritizes extracted specs in catalog cards", () => {
+    expect(
+      buildProductCardHighlights({
+        title: 'Телевизор Samsung UE55CU7100U 55" 4K UHD Smart TV',
+        warranty: "12",
+      }),
+    ).toEqual(['55"', "4K UHD", "Гарантия 12 мес."]);
+  });
+
+  it("selects short useful facts for catalog cards", () => {
+    expect(
+      buildProductCardHighlights({
+        warranty: "12",
+        weight: 2.5,
+        volume: 0.009044,
+        multiplicity: 2,
+      }),
+    ).toEqual(["Гарантия 12 мес.", "2.5 кг", "Кратно 2 шт."]);
+  });
+
+  it("falls back to part number when physical facts are missing", () => {
+    expect(buildProductCardHighlights({ part: "ABC-1" })).toEqual(["Арт. ABC-1"]);
   });
 });
 
@@ -60,6 +110,8 @@ describe("productDescriptionText", () => {
     expect(description).toContain("Категория: Холодильники");
     expect(description).toContain("Гарантия: 12 мес.");
     expect(description).toContain("Заказ кратно 2 шт.");
-    expect(description).toContain("Ориентировочный срок поставки: 2 дня.");
+    expect(description).toContain("Ориентировочный срок поставки: под заказ 7 дней.");
+    expect(description).not.toContain("2 дня");
+    expect(description).not.toContain("день в день");
   });
 });

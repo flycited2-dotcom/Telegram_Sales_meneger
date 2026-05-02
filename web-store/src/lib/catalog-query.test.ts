@@ -18,28 +18,34 @@ describe("parseCatalogSearchParams", () => {
         q: " холодильник ",
         brand: ["ATLANT", "ignored"],
         available: "1",
+        photo: "1",
         minPrice: "10000",
         maxPrice: "50000",
         page: "3",
+        sort: "price_asc",
       }),
     ).toEqual({
       query: "холодильник",
       brand: "ATLANT",
       onlyAvailable: true,
+      withPhoto: true,
       minPrice: 10000,
       maxPrice: 50000,
       page: 3,
+      sort: "price_asc",
     });
   });
 
   it("uses safe defaults for empty filters and bad page values", () => {
-    expect(parseCatalogSearchParams({ q: " ", page: "-4", minPrice: "bad" })).toEqual({
+    expect(parseCatalogSearchParams({ q: " ", page: "-4", minPrice: "bad", sort: "unknown" })).toEqual({
       query: undefined,
       brand: undefined,
       onlyAvailable: false,
+      withPhoto: false,
       minPrice: undefined,
       maxPrice: undefined,
       page: 1,
+      sort: "popular",
     });
   });
 });

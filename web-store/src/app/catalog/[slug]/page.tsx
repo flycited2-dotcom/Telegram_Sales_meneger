@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { CatalogView } from "@/app/catalog/catalog-view";
 import { getCatalogPage, getCategoryBySlug } from "@/lib/catalog";
 import { parseCatalogSearchParams } from "@/lib/catalog-query";
+import { absoluteStorefrontUrl } from "@/lib/seo-jsonld";
 import { storefront } from "@/lib/storefront";
 
 export const revalidate = 300;
@@ -22,9 +23,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
   }
 
+  const canonical = absoluteStorefrontUrl(`/catalog/${category.slug}`);
   return {
-    title: category.name,
-    description: `${category.name} в интернет-магазине ${storefront.brand}. Доставка по региону: ${storefront.region}.`,
+    title: `${category.name} купить с доставкой | ${storefront.brand}`,
+    description: `${category.name} в интернет-магазине ${storefront.brand}. Доставка под заказ 7 дней по региону: ${storefront.region}.`,
+    alternates: {
+      canonical,
+    },
+    openGraph: {
+      title: `${category.name} | ${storefront.brand}`,
+      description: `${category.name}: цены, наличие у поставщика и доставка под заказ 7 дней.`,
+      url: canonical,
+      type: "website",
+    },
   };
 }
 
@@ -36,9 +47,11 @@ export default async function CategoryPage({ params, searchParams }: Props) {
     query: filters.query,
     brand: filters.brand,
     available: filters.onlyAvailable,
+    withPhoto: filters.withPhoto,
     minPrice: filters.minPrice,
     maxPrice: filters.maxPrice,
     page: filters.page,
+    sort: filters.sort,
   });
 
   if (!data.category) {
@@ -58,8 +71,10 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       currentQuery={filters.query}
       currentBrand={filters.brand}
       onlyAvailable={filters.onlyAvailable}
+      withPhoto={filters.withPhoto}
       minPrice={filters.minPrice}
       maxPrice={filters.maxPrice}
+      sort={filters.sort}
       basePath={`/catalog/${data.category.slug}`}
     />
   );

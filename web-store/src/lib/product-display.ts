@@ -1,3 +1,6 @@
+import { publicFulfillmentText } from "@/lib/fulfillment";
+import { extractProductNameSpecs } from "@/lib/product-name-specs";
+
 export type ProductFact = {
   label: string;
   value: string;
@@ -5,6 +8,7 @@ export type ProductFact = {
 
 export type ProductFactInput = {
   sku: number;
+  title?: string | null;
   categoryName?: string | null;
   vendor?: string | null;
   part?: string | null;
@@ -26,6 +30,8 @@ export type ProductDescriptionInput = {
   multiplicity?: number | null;
 };
 
+export type ProductCardHighlightInput = Pick<ProductFactInput, "title" | "part" | "warranty" | "weight" | "volume" | "multiplicity">;
+
 export function warrantyLabel(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
   if (!trimmed) return null;
@@ -38,19 +44,12 @@ export function warrantyLabel(value: string | null | undefined): string | null {
   return trimmed;
 }
 
-function deliveryLabel(days: number | null | undefined): string | null {
-  if (days === null || days === undefined) return null;
-  if (days <= 0) return "день в день";
-
-  const lastDigit = days % 10;
-  const lastTwoDigits = days % 100;
-  const suffix = lastDigit === 1 && lastTwoDigits !== 11 ? "день" : lastDigit >= 2 && lastDigit <= 4 && (lastTwoDigits < 12 || lastTwoDigits > 14) ? "дня" : "дней";
-
-  return `${days} ${suffix}`;
-}
-
 function trimNumber(value: number, fractionDigits: number): string {
   return value.toFixed(fractionDigits).replace(/\.?0+$/, "");
+}
+
+function publicDeliveryShortLabel(): string {
+  return publicFulfillmentText({ isAvailable: true }).deliveryShortLabel.toLowerCase();
 }
 
 function volumeLabel(value: number | null | undefined): string | null {
@@ -76,6 +75,9 @@ export function buildProductFacts(product: ProductFactInput): ProductFact[] {
   const facts: ProductFact[] = [];
 
   pushFact(facts, "SKU", product.sku);
+  for (const spec of extractProductNameSpecs(product.title)) {
+    pushFact(facts, spec.label, spec.value);
+  }
   pushFact(facts, "Категория", product.categoryName);
   pushFact(facts, "Бренд", product.vendor);
   pushFact(facts, "Партномер", product.part);
@@ -84,9 +86,22 @@ export function buildProductFacts(product: ProductFactInput): ProductFact[] {
   pushFact(facts, "Вес", product.weight ? `${trimNumber(product.weight, 3)} кг` : null);
   pushFact(facts, "Объем упаковки", volumeLabel(product.volume));
   pushFact(facts, "Кратность заказа", product.multiplicity && product.multiplicity > 1 ? `${product.multiplicity} шт.` : null);
-  pushFact(facts, "Срок поставки", deliveryLabel(product.deliveryDays));
+  pushFact(facts, "Срок поставки", publicFulfillmentText({ isAvailable: true }).deliveryShortLabel);
 
   return facts;
+}
+
+export function buildProductCardHighlights(product: ProductCardHighlightInput): string[] {
+  const highlights = [
+    ...extractProductNameSpecs(product.title).map((spec) => spec.value),
+    warrantyLabel(product.warranty) ? `Гарантия ${warrantyLabel(product.warranty)}` : null,
+    product.weight ? `${trimNumber(product.weight, 3)} кг` : null,
+    product.multiplicity && product.multiplicity > 1 ? `Кратно ${product.multiplicity} шт.` : null,
+    volumeLabel(product.volume),
+    product.part ? `Арт. ${product.part}` : null,
+  ].filter(Boolean) as string[];
+
+  return highlights.slice(0, 3);
 }
 
 export function productDescriptionText(description: string | null | undefined, product?: ProductDescriptionInput): string {
@@ -105,7 +120,7 @@ export function productDescriptionText(description: string | null | undefined, p
   ].filter(Boolean);
   const orderNotes = [
     product.multiplicity && product.multiplicity > 1 ? `Заказ кратно ${product.multiplicity} шт.` : null,
-    deliveryLabel(product.deliveryDays) ? `Ориентировочный срок поставки: ${deliveryLabel(product.deliveryDays)}.` : null,
+    `Ориентировочный срок поставки: ${publicDeliveryShortLabel()}.`,
   ].filter(Boolean);
 
   return [

@@ -10,6 +10,8 @@ export type CheckoutInput = {
   email?: string | null;
   comment?: string | null;
   cartItems: CartInputItem[];
+  notificationKind?: "order" | "quick";
+  sourceUrl?: string | null;
 };
 
 function orderNumber(): string {
@@ -57,6 +59,8 @@ export async function createLocalOrder(input: CheckoutInput) {
     phone: order.phone,
     email: order.email,
     comment: order.comment,
+    kind: input.notificationKind,
+    sourceUrl: input.sourceUrl,
     quote,
   });
 

@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { unstable_cache } from "next/cache";
 import { buildCategoryTree, collectDescendantCategoryIds, type CategoryTreeItem, type FlatCategory } from "@/lib/catalog-tree";
+import type { CatalogSort } from "@/lib/catalog-query";
 import { prisma } from "@/lib/db";
 import { isDegradedRetailName, normalRetailNameWhere } from "@/lib/retail-products";
 
@@ -12,9 +13,11 @@ export type CatalogQuery = {
   query?: string;
   brand?: string;
   available?: boolean;
+  withPhoto?: boolean;
   minPrice?: number;
   maxPrice?: number;
   page?: number;
+  sort?: CatalogSort;
 };
 
 export function decimalToNumber(value: unknown): number {
@@ -178,6 +181,27 @@ const getCatalogBrands = unstable_cache(async (where: Prisma.ProductWhereInput) 
   });
 }, ["catalog-brands"], { revalidate: STOREFRONT_CACHE_SECONDS, tags: ["catalog", "products"] });
 
+function catalogProductOrderBy(sort: CatalogSort = "popular"): Prisma.ProductOrderByWithRelationInput[] {
+  if (sort === "price_asc") {
+    return [
+      { isAvailable: "desc" },
+      { retailPrice: { sort: "asc", nulls: "last" } },
+      { hasImage: "desc" },
+      { updatedAt: "desc" },
+    ];
+  }
+
+  if (sort === "price_desc") {
+    return [{ isAvailable: "desc" }, { retailPrice: "desc" }, { hasImage: "desc" }, { updatedAt: "desc" }];
+  }
+
+  if (sort === "new") {
+    return [{ updatedAt: "desc" }, { hasImage: "desc" }, { isAvailable: "desc" }, { retailPrice: "desc" }];
+  }
+
+  return [{ hasImage: "desc" }, { isAvailable: "desc" }, { retailPrice: "desc" }, { updatedAt: "desc" }];
+}
+
 export async function getCatalogPage(query: CatalogQuery) {
   const page = Math.max(query.page ?? 1, 1);
   const allCategories = await getActiveCategories();
@@ -221,6 +245,10 @@ export async function getCatalogPage(query: CatalogQuery) {
     filteredWhere.isAvailable = true;
   }
 
+  if (query.withPhoto) {
+    filteredWhere.hasImage = true;
+  }
+
   if (query.minPrice || query.maxPrice) {
     const priceFilter: Prisma.DecimalFilter = {};
     if (query.minPrice) priceFilter.gte = query.minPrice;
@@ -254,7 +282,7 @@ export async function getCatalogPage(query: CatalogQuery) {
           take: 1,
         },
       },
-      orderBy: [{ hasImage: "desc" }, { isAvailable: "desc" }, { retailPrice: "desc" }, { updatedAt: "desc" }],
+      orderBy: catalogProductOrderBy(query.sort),
       skip: (page - 1) * PRODUCTS_PER_PAGE,
       take: PRODUCTS_PER_PAGE,
     }),
@@ -272,6 +300,47 @@ export async function getCatalogPage(query: CatalogQuery) {
     categories,
     brands: brands.map((row) => row.vendor).filter(Boolean) as string[],
   };
+}
+
+export async function getRelatedProducts({
+  productId,
+  categoryId,
+  take = 4,
+}: {
+  productId: string;
+  categoryId?: string | null;
+  take?: number;
+}) {
+  if (!categoryId) return [];
+
+  return prisma.product.findMany({
+    where: {
+      id: {
+        not: productId,
+      },
+      categoryId,
+      isActive: true,
+      isVisible: true,
+      isAvailable: true,
+      retailPrice: {
+        not: null,
+      },
+      ...normalRetailNameWhere(),
+    },
+    include: {
+      images: {
+        where: {
+          deleted: false,
+        },
+        orderBy: {
+          priority: "asc",
+        },
+        take: 1,
+      },
+    },
+    orderBy: [{ hasImage: "desc" }, { updatedAt: "desc" }],
+    take,
+  });
 }
 
 export async function getProductBySlug(slug: string) {
