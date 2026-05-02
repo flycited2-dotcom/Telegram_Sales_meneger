@@ -68,7 +68,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           slug: true,
           updatedAt: true,
         },
-        orderBy: [{ images: { _count: "desc" } }, { updatedAt: "desc" }],
+        orderBy: [{ hasImage: "desc" }, { updatedAt: "desc" }],
         take: 700,
       }),
     ]);

@@ -156,7 +156,7 @@ export const getHomeSnapshot = unstable_cache(async () => {
           take: 1,
         },
       },
-      orderBy: [{ images: { _count: "desc" } }, { updatedAt: "desc" }],
+      orderBy: [{ hasImage: "desc" }, { updatedAt: "desc" }],
       take: 8,
     }),
   ]);
@@ -254,7 +254,7 @@ export async function getCatalogPage(query: CatalogQuery) {
           take: 1,
         },
       },
-      orderBy: [{ images: { _count: "desc" } }, { isAvailable: "desc" }, { retailPrice: "desc" }, { updatedAt: "desc" }],
+      orderBy: [{ hasImage: "desc" }, { isAvailable: "desc" }, { retailPrice: "desc" }, { updatedAt: "desc" }],
       skip: (page - 1) * PRODUCTS_PER_PAGE,
       take: PRODUCTS_PER_PAGE,
     }),
@@ -274,7 +274,7 @@ export async function getCatalogPage(query: CatalogQuery) {
   };
 }
 
-export const getProductBySlug = unstable_cache(async (slug: string) => {
+export async function getProductBySlug(slug: string) {
   return prisma.product.findFirst({
     where: {
       slug,
@@ -293,7 +293,7 @@ export const getProductBySlug = unstable_cache(async (slug: string) => {
       },
     },
   });
-}, ["product-by-slug"], { revalidate: STOREFRONT_CACHE_SECONDS, tags: ["products"] });
+}
 
 export async function getProductsForQuote(skus: number[]) {
   const products = await prisma.product.findMany({

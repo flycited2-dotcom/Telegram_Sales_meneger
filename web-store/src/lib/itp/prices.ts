@@ -35,6 +35,7 @@ export async function syncItpPrices() {
     }
 
     const activeProducts = response.data.products;
+    const syncStartedAt = new Date();
     const settings = await getStoreSettings();
     const skus = activeProducts.map((product) => product.sku);
     const existingProducts = await prisma.product.findMany({
@@ -50,13 +51,6 @@ export async function syncItpPrices() {
       },
     });
     const productBySku = new Map(existingProducts.map((product) => [product.sku, product]));
-
-    await prisma.product.updateMany({
-      data: {
-        isAvailable: false,
-        stockStatus: "out",
-      },
-    });
 
     let processed = 0;
     let failed = 0;
@@ -95,13 +89,30 @@ export async function syncItpPrices() {
       processed += 1;
     }
 
+    const unavailableProducts = await prisma.product.updateMany({
+      where: {
+        isAvailable: true,
+        updatedAt: {
+          lt: syncStartedAt,
+        },
+      },
+      data: {
+        isAvailable: false,
+        stockStatus: "out",
+        nearestStockStatus: null,
+        deliveryDays: 0,
+      },
+    });
+
     await finishSyncLog(log.id, {
       status: "success",
       total: response.data.total,
       processed,
       failed,
       commandId: response.commandid,
-      message: failed ? "Prices synchronized; some supplier SKUs were not present in the local catalog." : "Prices and stock synchronized.",
+      message: failed
+        ? `Prices synchronized; some supplier SKUs were not present in the local catalog. Marked ${unavailableProducts.count} stale products unavailable.`
+        : `Prices and stock synchronized. Marked ${unavailableProducts.count} stale products unavailable.`,
     });
 
     return {

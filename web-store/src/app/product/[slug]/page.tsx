@@ -3,7 +3,7 @@ import { ArrowLeft, CheckCircle2, CreditCard, Truck } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AddToCartButton } from "@/components/add-to-cart-button";
-import { ProductImageFallback } from "@/components/product-image-fallback";
+import { ProductGallery } from "@/components/product-gallery";
 import { StockBadge } from "@/components/stock-badge";
 import { decimalToNumber, getProductBySlug } from "@/lib/catalog";
 import { formatRub } from "@/lib/format";
@@ -29,8 +29,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const name = product.name ?? product.supplierName;
   return {
-    title: name,
-    description: `${name} в интернет-магазине ${storefront.brand}. Доставка по региону: ${storefront.region}. Оплата при получении.`,
+    title: product.seoTitle ?? name,
+    description:
+      product.seoDescription ??
+      `${name} в интернет-магазине ${storefront.brand}. Доставка по региону: ${storefront.region}. Оплата при получении.`,
   };
 }
 
@@ -44,8 +46,32 @@ export default async function ProductPage({ params }: Props) {
 
   const name = product.name ?? product.supplierName;
   const price = decimalToNumber(product.retailPrice);
-  const image = productImageSrc(product.images[0]);
-  const facts = buildProductFacts(product);
+  const categoryName = product.category?.name ?? null;
+  const galleryImages = product.images.flatMap((image) => {
+    const src = productImageSrc(image);
+    return src ? [{ id: image.id, src, alt: name }] : [];
+  });
+  const facts = buildProductFacts({
+    sku: product.sku,
+    categoryName,
+    vendor: product.vendor,
+    part: product.part,
+    barcodes: product.barcodes,
+    warranty: product.warranty,
+    weight: product.weight,
+    volume: product.volume,
+    deliveryDays: product.deliveryDays,
+    multiplicity: product.multiplicity,
+  });
+  const description = productDescriptionText(product.description, {
+    supplierName: product.supplierName,
+    name: product.name,
+    categoryName,
+    vendor: product.vendor,
+    warranty: product.warranty,
+    deliveryDays: product.deliveryDays,
+    multiplicity: product.multiplicity,
+  });
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -55,16 +81,7 @@ export default async function ProductPage({ params }: Props) {
       </Link>
 
       <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_440px]">
-        <div className="rounded-lg border border-zinc-200 bg-white p-4">
-          <div className="flex aspect-[4/3] items-center justify-center overflow-hidden rounded-md bg-zinc-100">
-            {image ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={image} alt={name} className="h-full w-full object-contain" />
-            ) : (
-              <ProductImageFallback />
-            )}
-          </div>
-        </div>
+        <ProductGallery images={galleryImages} name={name} />
 
         <aside className="h-fit rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
           <div className="flex flex-wrap gap-2">
@@ -83,9 +100,7 @@ export default async function ProductPage({ params }: Props) {
           <div className="mt-6">
             <AddToCartButton sku={product.sku} multiplicity={product.multiplicity} disabled={!product.isAvailable || !price} />
           </div>
-          {product.multiplicity > 1 ? (
-            <p className="mt-3 text-sm text-amber-800">Заказ кратно {product.multiplicity} шт.</p>
-          ) : null}
+          {product.multiplicity > 1 ? <p className="mt-3 text-sm text-amber-800">Заказ кратно {product.multiplicity} шт.</p> : null}
           <div className="mt-6 grid gap-2 text-sm text-zinc-600">
             <div className="flex gap-2 rounded-md bg-emerald-50 p-3 text-emerald-800">
               <Truck className="size-5 shrink-0" aria-hidden />
@@ -102,7 +117,7 @@ export default async function ProductPage({ params }: Props) {
       <section className="mt-8 grid gap-6 lg:grid-cols-2">
         <div className="rounded-lg border border-zinc-200 bg-white p-6">
           <h2 className="text-xl font-bold text-zinc-950">О товаре</h2>
-          <p className="mt-3 leading-7 text-zinc-600">{productDescriptionText(product.description)}</p>
+          <p className="mt-3 leading-7 text-zinc-600">{description}</p>
         </div>
         <div className="rounded-lg border border-zinc-200 bg-white p-6">
           <h2 className="text-xl font-bold text-zinc-950">Характеристики</h2>
@@ -118,7 +133,11 @@ export default async function ProductPage({ params }: Props) {
         <div className="rounded-lg border border-zinc-200 bg-white p-6">
           <h2 className="text-xl font-bold text-zinc-950">Как оформляется заказ</h2>
           <div className="mt-4 space-y-3 text-sm text-zinc-600">
-            {["Вы добавляете товар в корзину и оставляете контакты.", "Менеджер подтверждает наличие, цену и срок доставки.", "Вы оплачиваете заказ при получении."].map((item) => (
+            {[
+              "Вы добавляете товар в корзину и оставляете контакты.",
+              "Менеджер подтверждает наличие, цену и срок доставки.",
+              "Вы оплачиваете заказ при получении.",
+            ].map((item) => (
               <div key={item} className="flex gap-3">
                 <CheckCircle2 className="size-5 shrink-0 text-teal-700" aria-hidden />
                 <span>{item}</span>

@@ -100,6 +100,7 @@ model ProductImage {
   updatedAt       DateTime @updatedAt
 
   @@index([sku, deleted, priority])
+  @@index([productId, deleted, priority])
 }
 
 model Order {
