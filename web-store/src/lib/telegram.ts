@@ -8,6 +8,8 @@ export function buildTelegramOrderMessage({
   phone,
   email,
   comment,
+  kind = "order",
+  sourceUrl,
   quote,
 }: {
   orderNumber: string;
@@ -15,15 +17,19 @@ export function buildTelegramOrderMessage({
   phone: string;
   email?: string | null;
   comment?: string | null;
+  kind?: "order" | "quick";
+  sourceUrl?: string | null;
   quote: OrderQuote;
 }) {
   const fulfillment = publicFulfillmentText({ isAvailable: true });
   const lines = [
-    `Новый заказ ${orderNumber}`,
+    kind === "quick" ? `Быстрый заказ ${orderNumber}` : `Новый заказ ${orderNumber}`,
     `Имя: ${customerName}`,
     `Телефон: ${phone}`,
     email ? `Email: ${email}` : null,
     comment ? `Комментарий: ${comment}` : null,
+    kind === "quick" ? "Источник: карточка товара" : null,
+    sourceUrl ? `Страница: ${sourceUrl}` : null,
     "",
     "Состав заказа:",
     ...quote.items.map(
@@ -45,6 +51,8 @@ export async function sendTelegramOrderNotification({
   phone,
   email,
   comment,
+  kind,
+  sourceUrl,
   quote,
 }: {
   orderNumber: string;
@@ -52,6 +60,8 @@ export async function sendTelegramOrderNotification({
   phone: string;
   email?: string | null;
   comment?: string | null;
+  kind?: "order" | "quick";
+  sourceUrl?: string | null;
   quote: OrderQuote;
 }) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -68,7 +78,7 @@ export async function sendTelegramOrderNotification({
     },
     body: JSON.stringify({
       chat_id: chatId,
-      text: buildTelegramOrderMessage({ orderNumber, customerName, phone, email, comment, quote }),
+      text: buildTelegramOrderMessage({ orderNumber, customerName, phone, email, comment, kind, sourceUrl, quote }),
       disable_web_page_preview: true,
     }),
   });

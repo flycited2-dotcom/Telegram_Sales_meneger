@@ -47,4 +47,33 @@ describe("sendOrderNotificationSafely", () => {
     expect(message).toContain("Менеджер подтвердит наличие, цену и срок перед оформлением.");
     expect(message).not.toContain("день в день");
   });
+
+  it("labels quick orders and includes the product page URL", () => {
+    const message = buildTelegramOrderMessage({
+      orderNumber: "ORD-QUICK",
+      customerName: "Иван",
+      phone: "+79780000000",
+      email: null,
+      comment: "Позвонить после 18:00",
+      kind: "quick",
+      sourceUrl: "https://climat-simf.ru/product/osushitel-11261200",
+      quote: {
+        items: [
+          {
+            sku: 11261200,
+            name: "Осушитель воздуха Ballu",
+            quantity: 1,
+            unitPrice: 19800,
+            total: 19800,
+          },
+        ],
+        total: 19800,
+      },
+    });
+
+    expect(message).toContain("Быстрый заказ ORD-QUICK");
+    expect(message).toContain("Источник: карточка товара");
+    expect(message).toContain("Страница: https://climat-simf.ru/product/osushitel-11261200");
+    expect(message).toContain("Позвонить после 18:00");
+  });
 });

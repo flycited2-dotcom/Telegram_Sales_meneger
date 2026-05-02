@@ -5,12 +5,14 @@ import { notFound } from "next/navigation";
 import { AddToCartButton } from "@/components/add-to-cart-button";
 import { ProductCard } from "@/components/product-card";
 import { ProductGallery } from "@/components/product-gallery";
+import { QuickOrderForm } from "@/components/quick-order-form";
 import { StockBadge } from "@/components/stock-badge";
 import { decimalToNumber, getProductBySlug, getRelatedProducts } from "@/lib/catalog";
 import { publicFulfillmentText } from "@/lib/fulfillment";
 import { formatRub } from "@/lib/format";
 import { buildProductFacts, productDescriptionText } from "@/lib/product-display";
 import { productImageSrc } from "@/lib/product-images";
+import { absoluteStorefrontUrl, buildBreadcrumbJsonLd, buildProductJsonLd } from "@/lib/seo-jsonld";
 import { phoneHref, storefront } from "@/lib/storefront";
 
 export const revalidate = 300;
@@ -30,11 +32,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   const name = product.name ?? product.supplierName;
+  const canonicalUrl = absoluteStorefrontUrl(`/product/${product.slug}`);
   return {
     title: product.seoTitle ?? name,
     description:
       product.seoDescription ??
       `${name} в интернет-магазине ${storefront.brand}. Доставка по региону: ${storefront.region}. Оплата при получении.`,
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    openGraph: {
+      title: product.seoTitle ?? name,
+      description: product.seoDescription ?? `${name} в интернет-магазине ${storefront.brand}.`,
+      url: canonicalUrl,
+      type: "website",
+    },
   };
 }
 
@@ -52,6 +64,8 @@ export default async function ProductPage({ params }: Props) {
     take: 4,
   });
   const name = product.name ?? product.supplierName;
+  const productPath = `/product/${product.slug}`;
+  const productUrl = absoluteStorefrontUrl(productPath);
   const price = decimalToNumber(product.retailPrice);
   const fulfillment = publicFulfillmentText({ isAvailable: product.isAvailable && Boolean(price) });
   const categoryName = product.category?.name ?? null;
@@ -81,9 +95,28 @@ export default async function ProductPage({ params }: Props) {
     deliveryDays: product.deliveryDays,
     multiplicity: product.multiplicity,
   });
+  const productJsonLd = buildProductJsonLd({
+    name,
+    description,
+    sku: product.sku,
+    brand: product.vendor,
+    images: galleryImages.map((image) => image.src),
+    price,
+    isAvailable: fulfillment.canOrder,
+    url: productPath,
+  });
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: storefront.brand, url: "/" },
+    { name: "Каталог", url: "/catalog" },
+    ...(product.category ? [{ name: product.category.name, url: `/catalog/${product.category.slug}` }] : []),
+    { name, url: productPath },
+  ]);
+  const minimumQuantity = Math.max(product.multiplicity || 1, 1);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-7xl px-4 pb-40 pt-8 sm:px-6 lg:px-8 lg:pb-8">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       <Link href="/catalog" className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-600 hover:text-teal-800">
         <ArrowLeft className="size-4" aria-hidden />
         Назад в каталог
@@ -120,6 +153,7 @@ export default async function ProductPage({ params }: Props) {
           <div className="mt-5">
             <AddToCartButton sku={product.sku} multiplicity={product.multiplicity} disabled={!fulfillment.canOrder || !price} />
           </div>
+          <QuickOrderForm sku={product.sku} quantity={minimumQuantity} sourceUrl={productUrl} disabled={!fulfillment.canOrder || !price} />
           {product.multiplicity > 1 ? <p className="mt-3 text-sm text-amber-800">Заказ кратно {product.multiplicity} шт.</p> : null}
           <div className="mt-6 grid gap-2 text-sm text-zinc-600">
             <div className="flex gap-2 rounded-md bg-stone-50 p-3">
@@ -205,6 +239,25 @@ export default async function ProductPage({ params }: Props) {
           Позвонить
         </a>
       </section>
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-white/95 p-3 shadow-2xl backdrop-blur lg:hidden">
+        <div className="mx-auto grid max-w-7xl gap-2">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-zinc-950">{name}</p>
+              <p className="text-sm font-bold text-zinc-950">{price ? formatRub(price) : "Цена уточняется"}</p>
+            </div>
+            <AddToCartButton sku={product.sku} multiplicity={product.multiplicity} disabled={!fulfillment.canOrder || !price} compact />
+          </div>
+          <details className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+            <summary className="cursor-pointer list-none text-sm font-semibold text-zinc-800 [&::-webkit-details-marker]:hidden">
+              Быстрый заказ
+            </summary>
+            <div className="mt-3">
+              <QuickOrderForm sku={product.sku} quantity={minimumQuantity} sourceUrl={productUrl} disabled={!fulfillment.canOrder || !price} compact />
+            </div>
+          </details>
+        </div>
+      </div>
     </div>
   );
 }
