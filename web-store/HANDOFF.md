@@ -69,6 +69,9 @@
 - Товар `11261200` проверен на проде: страница отдает `200`, содержит `В наличии у поставщика` и `Доставка под заказ 7 дней`, старого текста `день в день` нет.
 - Тестовая заявка создана через серверный `createLocalOrder`: `ORD-20260502-ZCO0EA`, 1 товар, сумма `19800`.
 - Backup перед выкладкой Phase A: `/var/www/climat-simf.ru.backup-phase-a-20260502151952`
+- Phase B первая волна выложена на VPS: `npm run build` - passed, `pm2 restart climat-simf-store --update-env` - passed, `https://climat-simf.ru/` - `200`.
+- Продовые smoke-проверки Phase B: `/catalog?available=1&photo=1&sort=price_asc` отдает `200` и показывает сортировку/быстрый фильтр; товар `11261200` отдает `200`, показывает `Похожие товары`, CTA подбора аналога и `Доставка под заказ 7 дней`.
+- Backup изменяемых файлов перед выкладкой Phase B: `/var/www/climat-simf.ru.file-backup-phase-b-20260502191400`
 - PM2 `climat-simf-store` - online
 
 Предыдущие проверки:
