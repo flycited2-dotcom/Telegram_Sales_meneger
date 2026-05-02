@@ -76,6 +76,9 @@
 - Backup изменяемых файлов перед выкладкой Phase B: `/var/www/climat-simf.ru.file-backup-phase-b-20260502191400`
 - Извлечение характеристик из названий выложено на VPS: `npm run build` - passed, `pm2 restart climat-simf-store --update-env` - passed. Smoke: товар `11261200` показывает `Производительность`, `Объем бака`, `30 л/сутки`, `4 л`; каталог по `Ballu Vector BD-30L` показывает `30 л/сутки` и `4 л`.
 - Backup изменяемых файлов перед выкладкой extractor: `/var/www/climat-simf.ru.file-backup-spec-extract-20260502192800`
+- SEO + быстрый заказ выложены на VPS: product page отдает JSON-LD `Product`, JSON-LD `BreadcrumbList`, canonical и форму `Быстрый заказ`; каталог отдает canonical без параметров фильтрации.
+- Тестовый быстрый заказ создан через backend-путь с Telegram-уведомлением: `ORD-20260502-LCT8E5`, SKU `11261200`, сумма `19800`.
+- Backup изменяемых файлов перед выкладкой SEO/quick order: `/var/www/climat-simf.ru.file-backup-seo-quick-20260503023700`
 - PM2 `climat-simf-store` - online
 
 Предыдущие проверки:
