@@ -1,16 +1,17 @@
 import type { Metadata } from "next";
-import { ArrowLeft, CheckCircle2, CreditCard, Truck } from "lucide-react";
+import { ArrowLeft, CheckCircle2, CreditCard, Phone, Truck } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AddToCartButton } from "@/components/add-to-cart-button";
+import { ProductCard } from "@/components/product-card";
 import { ProductGallery } from "@/components/product-gallery";
 import { StockBadge } from "@/components/stock-badge";
-import { decimalToNumber, getProductBySlug } from "@/lib/catalog";
+import { decimalToNumber, getProductBySlug, getRelatedProducts } from "@/lib/catalog";
 import { publicFulfillmentText } from "@/lib/fulfillment";
 import { formatRub } from "@/lib/format";
 import { buildProductFacts, productDescriptionText } from "@/lib/product-display";
 import { productImageSrc } from "@/lib/product-images";
-import { storefront } from "@/lib/storefront";
+import { phoneHref, storefront } from "@/lib/storefront";
 
 export const revalidate = 300;
 
@@ -45,6 +46,11 @@ export default async function ProductPage({ params }: Props) {
     notFound();
   }
 
+  const relatedProducts = await getRelatedProducts({
+    productId: product.id,
+    categoryId: product.categoryId,
+    take: 4,
+  });
   const name = product.name ?? product.supplierName;
   const price = decimalToNumber(product.retailPrice);
   const fulfillment = publicFulfillmentText({ isAvailable: product.isAvailable && Boolean(price) });
@@ -158,6 +164,45 @@ export default async function ProductPage({ params }: Props) {
             ))}
           </div>
         </div>
+      </section>
+
+      <section className="mt-8 rounded-lg border border-zinc-200 bg-white p-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">Можно сравнить</p>
+            <h2 className="mt-2 text-xl font-bold text-zinc-950">Похожие товары</h2>
+          </div>
+          <Link href={product.category ? `/catalog/${product.category.slug}` : "/catalog"} className="text-sm font-semibold text-teal-800 hover:text-teal-950">
+            Смотреть раздел
+          </Link>
+        </div>
+        {relatedProducts.length ? (
+          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {relatedProducts.map((relatedProduct) => (
+              <ProductCard key={relatedProduct.id} product={relatedProduct} />
+            ))}
+          </div>
+        ) : (
+          <div className="mt-5 rounded-lg bg-stone-50 p-5 text-sm text-zinc-600">
+            Похожих товаров в этом разделе пока мало. Позвоните менеджеру, и мы подберем альтернативу по цене, сроку и характеристикам.
+          </div>
+        )}
+      </section>
+
+      <section className="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-lg border border-teal-100 bg-teal-50 p-6">
+        <div>
+          <h2 className="text-xl font-bold text-zinc-950">Нужно подобрать аналог?</h2>
+          <p className="mt-2 text-sm leading-6 text-zinc-700">
+            Менеджер проверит наличие у поставщика, срок 7 дней и предложит близкие варианты по бюджету.
+          </p>
+        </div>
+        <a
+          href={phoneHref(storefront.phones[0])}
+          className="inline-flex h-11 items-center gap-2 rounded-lg bg-zinc-950 px-5 text-sm font-semibold text-white hover:bg-teal-800"
+        >
+          <Phone className="size-4" aria-hidden />
+          Позвонить
+        </a>
       </section>
     </div>
   );
