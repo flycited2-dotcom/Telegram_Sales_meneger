@@ -1,3 +1,5 @@
+import { publicFulfillmentText } from "@/lib/fulfillment";
+
 export type ProductFact = {
   label: string;
   value: string;
@@ -38,19 +40,12 @@ export function warrantyLabel(value: string | null | undefined): string | null {
   return trimmed;
 }
 
-function deliveryLabel(days: number | null | undefined): string | null {
-  if (days === null || days === undefined) return null;
-  if (days <= 0) return "день в день";
-
-  const lastDigit = days % 10;
-  const lastTwoDigits = days % 100;
-  const suffix = lastDigit === 1 && lastTwoDigits !== 11 ? "день" : lastDigit >= 2 && lastDigit <= 4 && (lastTwoDigits < 12 || lastTwoDigits > 14) ? "дня" : "дней";
-
-  return `${days} ${suffix}`;
-}
-
 function trimNumber(value: number, fractionDigits: number): string {
   return value.toFixed(fractionDigits).replace(/\.?0+$/, "");
+}
+
+function publicDeliveryShortLabel(): string {
+  return publicFulfillmentText({ isAvailable: true }).deliveryShortLabel.toLowerCase();
 }
 
 function volumeLabel(value: number | null | undefined): string | null {
@@ -84,7 +79,7 @@ export function buildProductFacts(product: ProductFactInput): ProductFact[] {
   pushFact(facts, "Вес", product.weight ? `${trimNumber(product.weight, 3)} кг` : null);
   pushFact(facts, "Объем упаковки", volumeLabel(product.volume));
   pushFact(facts, "Кратность заказа", product.multiplicity && product.multiplicity > 1 ? `${product.multiplicity} шт.` : null);
-  pushFact(facts, "Срок поставки", deliveryLabel(product.deliveryDays));
+  pushFact(facts, "Срок поставки", publicFulfillmentText({ isAvailable: true }).deliveryShortLabel);
 
   return facts;
 }
@@ -105,7 +100,7 @@ export function productDescriptionText(description: string | null | undefined, p
   ].filter(Boolean);
   const orderNotes = [
     product.multiplicity && product.multiplicity > 1 ? `Заказ кратно ${product.multiplicity} шт.` : null,
-    deliveryLabel(product.deliveryDays) ? `Ориентировочный срок поставки: ${deliveryLabel(product.deliveryDays)}.` : null,
+    `Ориентировочный срок поставки: ${publicDeliveryShortLabel()}.`,
   ].filter(Boolean);
 
   return [

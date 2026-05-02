@@ -34,8 +34,18 @@ describe("buildProductFacts", () => {
       { label: "Вес", value: "2.5 кг" },
       { label: "Объем упаковки", value: "0.009 м³" },
       { label: "Кратность заказа", value: "2 шт." },
-      { label: "Срок поставки", value: "3 дня" },
+      { label: "Срок поставки", value: "Под заказ 7 дней" },
     ]);
+  });
+
+  it("never exposes same-day delivery copy in public facts", () => {
+    const facts = buildProductFacts({
+      sku: 123,
+      deliveryDays: 0,
+    });
+
+    expect(facts).toContainEqual({ label: "Срок поставки", value: "Под заказ 7 дней" });
+    expect(facts.map((fact) => fact.value).join(" ")).not.toContain("день в день");
   });
 });
 
@@ -60,6 +70,8 @@ describe("productDescriptionText", () => {
     expect(description).toContain("Категория: Холодильники");
     expect(description).toContain("Гарантия: 12 мес.");
     expect(description).toContain("Заказ кратно 2 шт.");
-    expect(description).toContain("Ориентировочный срок поставки: 2 дня.");
+    expect(description).toContain("Ориентировочный срок поставки: под заказ 7 дней.");
+    expect(description).not.toContain("2 дня");
+    expect(description).not.toContain("день в день");
   });
 });
