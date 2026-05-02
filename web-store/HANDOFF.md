@@ -73,6 +73,8 @@
 - Phase B первая волна выложена на VPS: `npm run build` - passed, `pm2 restart climat-simf-store --update-env` - passed, `https://climat-simf.ru/` - `200`.
 - Продовые smoke-проверки Phase B: `/catalog?available=1&photo=1&sort=price_asc` отдает `200` и показывает сортировку/быстрый фильтр; товар `11261200` отдает `200`, показывает `Похожие товары`, CTA подбора аналога и `Доставка под заказ 7 дней`.
 - Backup изменяемых файлов перед выкладкой Phase B: `/var/www/climat-simf.ru.file-backup-phase-b-20260502191400`
+- Извлечение характеристик из названий выложено на VPS: `npm run build` - passed, `pm2 restart climat-simf-store --update-env` - passed. Smoke: товар `11261200` показывает `Производительность`, `Объем бака`, `30 л/сутки`, `4 л`; каталог по `Ballu Vector BD-30L` показывает `30 л/сутки` и `4 л`.
+- Backup изменяемых файлов перед выкладкой extractor: `/var/www/climat-simf.ru.file-backup-spec-extract-20260502192800`
 - PM2 `climat-simf-store` - online
 
 Предыдущие проверки:
