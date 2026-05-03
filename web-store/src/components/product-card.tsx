@@ -2,12 +2,14 @@ import type { Product, ProductImage } from "@prisma/client";
 import Link from "next/link";
 import { AddToCartButton } from "@/components/add-to-cart-button";
 import { ProductImageFallback } from "@/components/product-image-fallback";
+import { QuickOrderForm } from "@/components/quick-order-form";
 import { StockBadge } from "@/components/stock-badge";
 import { decimalToNumber } from "@/lib/catalog";
 import { publicFulfillmentText } from "@/lib/fulfillment";
 import { formatRub } from "@/lib/format";
 import { buildProductCardHighlights } from "@/lib/product-display";
 import { productImageSrc } from "@/lib/product-images";
+import { absoluteStorefrontUrl } from "@/lib/seo-jsonld";
 
 type ProductCardProduct = Product & {
   images?: ProductImage[];
@@ -18,6 +20,9 @@ export function ProductCard({ product }: { product: ProductCardProduct }) {
   const image = productImageSrc(product.images?.[0]);
   const price = decimalToNumber(product.retailPrice);
   const fulfillment = publicFulfillmentText({ isAvailable: product.isAvailable && Boolean(price) });
+  const canOrder = fulfillment.canOrder && Boolean(price);
+  const minimumQuantity = Math.max(product.multiplicity || 1, 1);
+  const productUrl = absoluteStorefrontUrl(`/product/${product.slug}`);
   const highlights = buildProductCardHighlights({
     title: name,
     part: product.part,
@@ -62,12 +67,17 @@ export function ProductCard({ product }: { product: ProductCardProduct }) {
         ) : null}
         <div className="mt-auto pt-4">
           <div className="mb-3 text-xl font-bold text-zinc-950">{price ? formatRub(price) : "Цена уточняется"}</div>
-          <AddToCartButton
-            sku={product.sku}
-            multiplicity={product.multiplicity}
-            disabled={!fulfillment.canOrder || !price}
-            compact
-          />
+          <div className="grid gap-2">
+            <AddToCartButton sku={product.sku} multiplicity={product.multiplicity} disabled={!canOrder} compact />
+            <details className="rounded-lg border border-zinc-200 bg-zinc-50 p-2">
+              <summary className="cursor-pointer list-none text-center text-sm font-semibold text-zinc-800 hover:text-teal-800 [&::-webkit-details-marker]:hidden">
+                Быстрый заказ
+              </summary>
+              <div className="mt-3">
+                <QuickOrderForm sku={product.sku} quantity={minimumQuantity} sourceUrl={productUrl} disabled={!canOrder} compact />
+              </div>
+            </details>
+          </div>
         </div>
       </div>
     </article>
