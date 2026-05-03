@@ -1,3 +1,5 @@
+import { normalizeCatalogSpecFilterValues, type CatalogSpecFilterValue } from "@/lib/catalog-spec-filters";
+
 export type CatalogSearchParams = Record<string, string | string[] | undefined>;
 
 export const catalogSortValues = ["popular", "price_asc", "price_desc", "new"] as const;
@@ -13,10 +15,16 @@ export type ParsedCatalogSearchParams = {
   maxPrice?: number;
   page: number;
   sort: CatalogSort;
+  specFilters: CatalogSpecFilterValue[];
 };
 
 export function firstParam(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function allParams(value: string | string[] | undefined): string[] {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
 }
 
 export function parsePositiveNumberParam(value: string | string[] | undefined): number | undefined {
@@ -49,5 +57,6 @@ export function parseCatalogSearchParams(params: CatalogSearchParams): ParsedCat
     maxPrice: parsePositiveNumberParam(params.maxPrice),
     page,
     sort: parseCatalogSort(params.sort),
+    specFilters: normalizeCatalogSpecFilterValues(allParams(params.spec)),
   };
 }

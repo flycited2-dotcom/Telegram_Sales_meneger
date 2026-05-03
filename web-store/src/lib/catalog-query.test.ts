@@ -23,6 +23,7 @@ describe("parseCatalogSearchParams", () => {
         maxPrice: "50000",
         page: "3",
         sort: "price_asc",
+        spec: ["tv_4k", "unknown", "storage_ssd"],
       }),
     ).toEqual({
       query: "холодильник",
@@ -33,6 +34,7 @@ describe("parseCatalogSearchParams", () => {
       maxPrice: 50000,
       page: 3,
       sort: "price_asc",
+      specFilters: ["tv_4k", "storage_ssd"],
     });
   });
 
@@ -46,6 +48,7 @@ describe("parseCatalogSearchParams", () => {
       maxPrice: undefined,
       page: 1,
       sort: "popular",
+      specFilters: [],
     });
   });
 });

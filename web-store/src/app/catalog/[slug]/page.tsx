@@ -52,6 +52,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
     maxPrice: filters.maxPrice,
     page: filters.page,
     sort: filters.sort,
+    specFilters: filters.specFilters,
   });
 
   if (!data.category) {
@@ -75,6 +76,8 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       minPrice={filters.minPrice}
       maxPrice={filters.maxPrice}
       sort={filters.sort}
+      currentSpecFilters={filters.specFilters}
+      specFilterOptions={data.specFilterOptions}
       basePath={`/catalog/${data.category.slug}`}
     />
   );

@@ -2,6 +2,11 @@ import type { Prisma } from "@prisma/client";
 import { unstable_cache } from "next/cache";
 import { buildCategoryTree, collectDescendantCategoryIds, type CategoryTreeItem, type FlatCategory } from "@/lib/catalog-tree";
 import type { CatalogSort } from "@/lib/catalog-query";
+import {
+  buildCatalogSpecFilterWhere,
+  getCatalogSpecFilterOptions,
+  type CatalogSpecFilterValue,
+} from "@/lib/catalog-spec-filters";
 import { prisma } from "@/lib/db";
 import { isDegradedRetailName, normalRetailNameWhere } from "@/lib/retail-products";
 
@@ -18,6 +23,7 @@ export type CatalogQuery = {
   maxPrice?: number;
   page?: number;
   sort?: CatalogSort;
+  specFilters?: CatalogSpecFilterValue[];
 };
 
 export function decimalToNumber(value: unknown): number {
@@ -202,6 +208,14 @@ function catalogProductOrderBy(sort: CatalogSort = "popular"): Prisma.ProductOrd
   return [{ hasImage: "desc" }, { isAvailable: "desc" }, { retailPrice: "desc" }, { updatedAt: "desc" }];
 }
 
+function toProductWhereArray(value: Prisma.ProductWhereInput["AND"]): Prisma.ProductWhereInput[] {
+  if (!value) {
+    return [];
+  }
+
+  return Array.isArray(value) ? value : [value];
+}
+
 export async function getCatalogPage(query: CatalogQuery) {
   const page = Math.max(query.page ?? 1, 1);
   const allCategories = await getActiveCategories();
@@ -256,6 +270,12 @@ export async function getCatalogPage(query: CatalogQuery) {
     filteredWhere.retailPrice = priceFilter;
   }
 
+  const specWhere = buildCatalogSpecFilterWhere(query.specFilters ?? []);
+  const specAnd = toProductWhereArray(specWhere.AND);
+  if (specAnd.length) {
+    filteredWhere.AND = [...toProductWhereArray(filteredWhere.AND), ...specAnd];
+  }
+
   const brandWhere: Prisma.ProductWhereInput = {
     ...filteredWhere,
     vendor: {
@@ -299,6 +319,10 @@ export async function getCatalogPage(query: CatalogQuery) {
     perPage: PRODUCTS_PER_PAGE,
     categories,
     brands: brands.map((row) => row.vendor).filter(Boolean) as string[],
+    specFilterOptions: getCatalogSpecFilterOptions({
+      categoryName: category?.name,
+      activeFilters: query.specFilters,
+    }),
   };
 }
 

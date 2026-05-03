@@ -26,9 +26,12 @@ export default async function SearchPage({ searchParams }: Props) {
         query,
         brand: filters.brand,
         available: filters.onlyAvailable,
+        withPhoto: filters.withPhoto,
         minPrice: filters.minPrice,
         maxPrice: filters.maxPrice,
         page: filters.page,
+        sort: filters.sort,
+        specFilters: filters.specFilters,
       }),
       shouldRecordSearch ? recordSearchTerm(query).catch(() => undefined) : Promise.resolve(),
     ]);
@@ -45,8 +48,11 @@ export default async function SearchPage({ searchParams }: Props) {
         currentQuery={query}
         currentBrand={filters.brand}
         onlyAvailable={filters.onlyAvailable}
+        withPhoto={filters.withPhoto}
         minPrice={filters.minPrice}
         maxPrice={filters.maxPrice}
+        sort={filters.sort}
+        currentSpecFilters={filters.specFilters}
         basePath="/search"
         error="Поиск временно недоступен. Позвоните нам, и менеджер поможет подобрать товар вручную."
       />
@@ -65,8 +71,12 @@ export default async function SearchPage({ searchParams }: Props) {
       currentQuery={query}
       currentBrand={filters.brand}
       onlyAvailable={filters.onlyAvailable}
+      withPhoto={filters.withPhoto}
       minPrice={filters.minPrice}
       maxPrice={filters.maxPrice}
+      sort={filters.sort}
+      currentSpecFilters={filters.specFilters}
+      specFilterOptions={data.specFilterOptions}
       basePath="/search"
     />
   );

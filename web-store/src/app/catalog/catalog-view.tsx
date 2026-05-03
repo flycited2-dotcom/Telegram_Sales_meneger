@@ -4,6 +4,7 @@ import Link from "next/link";
 import { CatalogGrid } from "@/components/catalog-grid";
 import type { CategoryTreeItem } from "@/lib/catalog-tree";
 import type { CatalogSort } from "@/lib/catalog-query";
+import { getCatalogSpecFilterLabel, type CatalogSpecFilterOption, type CatalogSpecFilterValue } from "@/lib/catalog-spec-filters";
 import { phoneHref, storefront } from "@/lib/storefront";
 
 const catalogSortLabels: Record<CatalogSort, string> = {
@@ -21,6 +22,7 @@ type CatalogUrlState = {
   minPrice?: number;
   maxPrice?: number;
   sort?: CatalogSort;
+  specFilters?: CatalogSpecFilterValue[];
   page?: number;
 };
 
@@ -33,6 +35,7 @@ function catalogHref(basePath: string, state: CatalogUrlState): string {
   if (state.minPrice) params.set("minPrice", String(state.minPrice));
   if (state.maxPrice) params.set("maxPrice", String(state.maxPrice));
   if (state.sort && state.sort !== "popular") params.set("sort", state.sort);
+  state.specFilters?.forEach((filter) => params.append("spec", filter));
   if (state.page && state.page > 1) params.set("page", String(state.page));
   const query = params.toString();
   return query ? `${basePath}?${query}` : basePath;
@@ -150,6 +153,8 @@ function FiltersPanel({
   minPrice,
   maxPrice,
   sort,
+  specFilterOptions,
+  currentSpecFilters = [],
   framed = true,
 }: {
   basePath: string;
@@ -161,9 +166,13 @@ function FiltersPanel({
   minPrice?: number;
   maxPrice?: number;
   sort: CatalogSort;
+  specFilterOptions: CatalogSpecFilterOption[];
+  currentSpecFilters?: CatalogSpecFilterValue[];
   framed?: boolean;
 }) {
-  const hasFilters = Boolean(currentBrand || currentQuery || onlyAvailable || withPhoto || minPrice || maxPrice || sort !== "popular");
+  const hasFilters = Boolean(
+    currentBrand || currentQuery || onlyAvailable || withPhoto || minPrice || maxPrice || sort !== "popular" || currentSpecFilters.length,
+  );
 
   return (
     <form action={basePath} className={framed ? "rounded-lg border border-zinc-200 bg-white p-4" : ""}>
@@ -218,6 +227,25 @@ function FiltersPanel({
         <input name="photo" value="1" type="checkbox" defaultChecked={withPhoto} className="size-4 accent-teal-700" />
         Только с фото
       </label>
+      {specFilterOptions.length ? (
+        <fieldset className="mt-4 border-t border-zinc-100 pt-4">
+          <legend className="text-sm font-semibold text-zinc-700">Характеристики</legend>
+          <div className="mt-3 grid gap-2">
+            {specFilterOptions.map((option) => (
+              <label key={option.key} className="flex items-center gap-2 text-sm text-zinc-700">
+                <input
+                  name="spec"
+                  value={option.key}
+                  type="checkbox"
+                  defaultChecked={currentSpecFilters.includes(option.key)}
+                  className="size-4 accent-teal-700"
+                />
+                {option.label}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      ) : null}
       <button className="mt-4 h-10 w-full rounded-lg bg-zinc-950 text-sm font-semibold text-white hover:bg-teal-800">
         Применить
       </button>
@@ -343,6 +371,7 @@ function CatalogControls({
         {state.withPhoto ? <input type="hidden" name="photo" value="1" /> : null}
         {state.minPrice ? <input type="hidden" name="minPrice" value={state.minPrice} /> : null}
         {state.maxPrice ? <input type="hidden" name="maxPrice" value={state.maxPrice} /> : null}
+        {state.specFilters?.map((filter) => <input key={filter} type="hidden" name="spec" value={filter} />)}
         <label className="sr-only" htmlFor="catalog-sort">
           Сортировка
         </label>
@@ -362,10 +391,13 @@ function CatalogControls({
 function ActiveFilterChips({
   basePath,
   state,
+  specFilterOptions,
 }: {
   basePath: string;
   state: CatalogUrlState & { sort: CatalogSort };
+  specFilterOptions: CatalogSpecFilterOption[];
 }) {
+  const specFilterLabels = new Map(specFilterOptions.map((option) => [option.key, option.label]));
   const chips = [
     state.query
       ? {
@@ -403,6 +435,14 @@ function ActiveFilterChips({
           href: catalogHref(basePath, { ...state, maxPrice: undefined, page: 1 }),
         }
       : null,
+    ...(state.specFilters ?? []).map((filter) => ({
+      label: specFilterLabels.get(filter) ?? getCatalogSpecFilterLabel(filter),
+      href: catalogHref(basePath, {
+        ...state,
+        specFilters: state.specFilters?.filter((current) => current !== filter),
+        page: 1,
+      }),
+    })),
     state.sort !== "popular"
       ? {
           label: catalogSortLabels[state.sort],
@@ -448,6 +488,8 @@ export function CatalogView({
   minPrice,
   maxPrice,
   sort = "popular",
+  currentSpecFilters = [],
+  specFilterOptions = [],
   basePath = "/catalog",
   error,
 }: {
@@ -466,6 +508,8 @@ export function CatalogView({
   minPrice?: number;
   maxPrice?: number;
   sort?: CatalogSort;
+  currentSpecFilters?: CatalogSpecFilterValue[];
+  specFilterOptions?: CatalogSpecFilterOption[];
   basePath?: string;
   error?: string;
 }) {
@@ -478,6 +522,7 @@ export function CatalogView({
     minPrice,
     maxPrice,
     sort,
+    specFilters: currentSpecFilters,
   };
   const pageHref = (nextPage: number) => {
     return catalogHref(basePath, { ...state, page: nextPage });
@@ -497,10 +542,10 @@ export function CatalogView({
         <CatalogTrustStrip />
         <QuickCategoryRail categories={categories} currentCategorySlug={currentCategorySlug} />
         <CatalogControls basePath={basePath} state={state} />
-        <ActiveFilterChips basePath={basePath} state={state} />
+        <ActiveFilterChips basePath={basePath} state={state} specFilterOptions={specFilterOptions} />
 
         <div className="mb-6 grid gap-3 lg:hidden">
-          <details open={Boolean(currentQuery || currentBrand || onlyAvailable || withPhoto || minPrice || maxPrice || sort !== "popular")} className="rounded-lg border border-zinc-200 bg-white p-4">
+          <details open={Boolean(currentQuery || currentBrand || onlyAvailable || withPhoto || minPrice || maxPrice || sort !== "popular" || currentSpecFilters.length)} className="rounded-lg border border-zinc-200 bg-white p-4">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-bold uppercase tracking-wide text-zinc-600 [&::-webkit-details-marker]:hidden">
               <span className="inline-flex items-center gap-2">
                 <SlidersHorizontal className="size-4" aria-hidden />
@@ -520,6 +565,8 @@ export function CatalogView({
                 minPrice={minPrice}
                 maxPrice={maxPrice}
                 sort={sort}
+                specFilterOptions={specFilterOptions}
+                currentSpecFilters={currentSpecFilters}
                 framed={false}
               />
             </div>
@@ -572,6 +619,8 @@ export function CatalogView({
           minPrice={minPrice}
           maxPrice={maxPrice}
           sort={sort}
+          specFilterOptions={specFilterOptions}
+          currentSpecFilters={currentSpecFilters}
         />
         </div>
       </aside>

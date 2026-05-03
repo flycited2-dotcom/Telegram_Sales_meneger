@@ -26,6 +26,7 @@
 - SEO/конверсия: добавлены canonical и SEO-шаблоны для каталога/категорий, JSON-LD `Product` и `BreadcrumbList` для карточки товара, быстрый заказ с карточки товара, отдельное Telegram-сообщение `Быстрый заказ`, мобильная sticky-панель покупки.
 - Админ-обзор усилен под продажи: очередь действий, последние заявки, быстрые заказы, качество каталога, товары без фото/цены, последние синхронизации.
 - Поиск начал собирать популярные запросы в `Setting` без новой миграции; в админке появился блок `Популярные поиски` со ссылками обратно в выдачу.
+- Каталог получил первый слой категорийных фильтров по уже извлекаемым характеристикам из названий: производительность `л/сутки`, объем бака, `4K / UHD`, `Full HD`, `SSD`, оперативная память. Фильтры живут в URL как `spec=...`, работают на desktop и mobile, активные фильтры показываются чипами.
 - Если поставщик не дает описание, сайт формирует клиентское автоописание из доступных данных товара.
 - Исправлена проблема с падением сайта из-за параллельных `sync:prices`: старый дублирующий cron отключен, синхронизация цен больше не делает тяжелый общий `UPDATE Product ... WHERE 1=1` в начале.
 - Добавлен индекс `ProductImage_productId_deleted_priority_idx` для ускорения выдачи первого фото товара.
@@ -63,7 +64,7 @@
 
 Локально:
 
-- `npm.cmd test` - 51 tests passed
+- `npm.cmd test` - 54 tests passed
 - `npm.cmd run lint` - passed
 - `npm.cmd run build` - passed
 
@@ -85,6 +86,8 @@
 - Backup изменяемых файлов перед выкладкой SEO/quick order: `/var/www/climat-simf.ru.file-backup-seo-quick-20260503023700`
 - Админ-сводка и популярные поиски выложены на VPS: `npm run build` - passed, `pm2 restart climat-simf-store --update-env` - passed, `/search?q=Ballu%20BD-30L` - `200`, `/admin` - `200`, `Setting.SEARCH_POPULAR_TERMS_V1` записал `ballu bd-30l`.
 - Backup изменяемых файлов перед выкладкой админ-сводки/поисковой аналитики: `/var/www/climat-simf.ru.file-backup-admin-dashboard-20260503030611`
+- Категорийные spec-фильтры выложены на VPS: `npm run build` - passed, `pm2 restart climat-simf-store --update-env` - passed, `/catalog?spec=tv_4k` - `200`, `/search?q=ssd&spec=storage_ssd` - `200`, в выдаче найден фильтр `4K / UHD`.
+- Backup изменяемых файлов перед выкладкой spec-фильтров: `/var/www/climat-simf.ru.file-backup-spec-filters-20260503031851`
 - PM2 `climat-simf-store` - online
 
 Предыдущие проверки:
