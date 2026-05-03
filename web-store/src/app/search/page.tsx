@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import { CatalogView } from "@/app/catalog/catalog-view";
 import { getCatalogPage } from "@/lib/catalog";
 import { parseCatalogSearchParams } from "@/lib/catalog-query";
+import { recordSearchTerm } from "@/lib/search-analytics";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Поиск товаров",
@@ -17,16 +18,20 @@ type Props = {
 export default async function SearchPage({ searchParams }: Props) {
   const filters = parseCatalogSearchParams(await searchParams);
   const query = filters.query ?? "";
+  const shouldRecordSearch = filters.page === 1 && query.trim().length > 0;
   let data;
   try {
-    data = await getCatalogPage({
-      query,
-      brand: filters.brand,
-      available: filters.onlyAvailable,
-      minPrice: filters.minPrice,
-      maxPrice: filters.maxPrice,
-      page: filters.page,
-    });
+    [data] = await Promise.all([
+      getCatalogPage({
+        query,
+        brand: filters.brand,
+        available: filters.onlyAvailable,
+        minPrice: filters.minPrice,
+        maxPrice: filters.maxPrice,
+        page: filters.page,
+      }),
+      shouldRecordSearch ? recordSearchTerm(query).catch(() => undefined) : Promise.resolve(),
+    ]);
   } catch {
     return (
       <CatalogView
