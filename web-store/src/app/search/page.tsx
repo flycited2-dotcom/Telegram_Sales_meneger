@@ -9,6 +9,10 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Поиск товаров",
   description: "Поиск бытовой техники, электроники, климатического оборудования и товаров для дома в БытТехОпт.",
+  robots: {
+    index: false,
+    follow: true,
+  },
 };
 
 type Props = {

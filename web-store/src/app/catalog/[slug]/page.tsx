@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { CatalogView } from "@/app/catalog/catalog-view";
 import { getCatalogPage, getCategoryBySlug } from "@/lib/catalog";
 import { parseCatalogSearchParams } from "@/lib/catalog-query";
+import { catalogRobotsForFilters } from "@/lib/seo-robots";
 import { absoluteStorefrontUrl } from "@/lib/seo-jsonld";
 import { storefront } from "@/lib/storefront";
 
@@ -13,8 +14,9 @@ type Props = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { slug } = await params;
+  const filters = parseCatalogSearchParams(await searchParams);
   const category = await getCategoryBySlug(slug);
 
   if (!category) {
@@ -30,6 +32,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     alternates: {
       canonical,
     },
+    robots: catalogRobotsForFilters(filters),
     openGraph: {
       title: `${category.name} | ${storefront.brand}`,
       description: `${category.name}: цены, наличие у поставщика и доставка под заказ 7 дней.`,

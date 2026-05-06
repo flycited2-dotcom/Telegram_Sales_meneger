@@ -30,6 +30,7 @@
 - В карточку товара в каталоге добавлен раскрываемый быстрый заказ: клиент может оставить имя и телефон прямо из выдачи, заявка идет тем же server action и Telegram-путем, что и быстрый заказ на странице товара.
 - Исправлен null-safe фильтр уценки/б/у товаров: товары с пустым публичным `name` больше не выпадают из sitemap/home/related-выдачи только из-за SQL `NULL` в условии `NOT contains`.
 - Заказы стали понятнее для продаж: добавлены русские статусы заявок, цветные бейджи в списке/карточке заказа, быстрый звонок клиенту, план обработки заявки для менеджера и таймлайн `Что дальше` на странице успешной заявки.
+- SEO/нагрузка: параметрические URL каталога, фильтров, сортировок, пагинации и поиска теперь получают `noindex, follow`; `robots.txt` закрывает `/search`, админку, API и URL с query-параметрами, чтобы боты меньше грузили бесконечные фильтры.
 - Если поставщик не дает описание, сайт формирует клиентское автоописание из доступных данных товара.
 - Исправлена проблема с падением сайта из-за параллельных `sync:prices`: старый дублирующий cron отключен, синхронизация цен больше не делает тяжелый общий `UPDATE Product ... WHERE 1=1` в начале.
 - Добавлен индекс `ProductImage_productId_deleted_priority_idx` для ускорения выдачи первого фото товара.
@@ -67,7 +68,7 @@
 
 Локально:
 
-- `npm.cmd test` - 57 tests passed
+- `npm.cmd test` - 59 tests passed
 - `npm.cmd run lint` - passed
 - `npm.cmd run build` - passed
 
@@ -97,6 +98,8 @@
 - Backup изменяемых файлов перед выкладкой null-safe фильтра: `/var/www/climat-simf.ru.file-backup-retail-null-filter-fix-20260507011941`
 - Улучшенный сценарий обработки заказов выложен на VPS: `npm run build` - passed, `pm2 restart climat-simf-store --update-env` - passed, `/order-success/<id>` - `200` и содержит `Что дальше` / `Позвонить менеджеру`; `/admin/orders/<id>` с admin-cookie - `200` и содержит `Состав заказа` / `Позвонить`.
 - Backup изменяемых файлов перед выкладкой order flow: `/var/www/climat-simf.ru.file-backup-order-flow-20260507013614`
+- Noindex для параметрических URL выложен на VPS: `npm run build` - passed, `pm2 restart climat-simf-store --update-env` - passed, `/catalog` - `200` без `noindex`, `/catalog?available=1&photo=1` - `200` с `noindex`, `/search?q=ssd` - `200` с `noindex`; `/robots.txt` - `200`, содержит `Disallow: /*?*` и `Disallow: /search`.
+- Backup изменяемых файлов перед выкладкой noindex filtered URLs: `/var/www/climat-simf.ru.file-backup-noindex-filtered-20260507015049`
 - PM2 `climat-simf-store` - online
 
 Предыдущие проверки:
