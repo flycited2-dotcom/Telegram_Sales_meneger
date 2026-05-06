@@ -5,6 +5,7 @@ import { CatalogGrid } from "@/components/catalog-grid";
 import type { CategoryTreeItem } from "@/lib/catalog-tree";
 import type { CatalogSort } from "@/lib/catalog-query";
 import { getCatalogSpecFilterLabel, type CatalogSpecFilterOption, type CatalogSpecFilterValue } from "@/lib/catalog-spec-filters";
+import { countActiveCatalogFilters } from "@/lib/catalog-ui";
 import { phoneHref, storefront } from "@/lib/storefront";
 
 const catalogSortLabels: Record<CatalogSort, string> = {
@@ -330,12 +331,12 @@ function CatalogControls({
   state: CatalogUrlState & { sort: CatalogSort };
 }) {
   return (
-    <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-white p-3">
-      <div className="flex flex-wrap gap-2">
+    <div className="mb-5 grid gap-3 rounded-lg border border-zinc-200 bg-white p-3 sm:flex sm:flex-wrap sm:items-center sm:justify-between">
+      <div className="flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
         <Link
           href={catalogHref(basePath, { ...state, onlyAvailable: true, page: 1 })}
           className={[
-            "inline-flex h-9 items-center gap-2 rounded-full border px-3 text-sm font-semibold",
+            "inline-flex h-9 shrink-0 items-center gap-2 rounded-full border px-3 text-sm font-semibold",
             state.onlyAvailable ? "border-teal-200 bg-teal-50 text-teal-900" : "border-zinc-200 text-zinc-700 hover:border-teal-200",
           ].join(" ")}
         >
@@ -345,7 +346,7 @@ function CatalogControls({
         <Link
           href={catalogHref(basePath, { ...state, withPhoto: true, page: 1 })}
           className={[
-            "inline-flex h-9 items-center gap-2 rounded-full border px-3 text-sm font-semibold",
+            "inline-flex h-9 shrink-0 items-center gap-2 rounded-full border px-3 text-sm font-semibold",
             state.withPhoto ? "border-teal-200 bg-teal-50 text-teal-900" : "border-zinc-200 text-zinc-700 hover:border-teal-200",
           ].join(" ")}
         >
@@ -355,7 +356,7 @@ function CatalogControls({
         <Link
           href={catalogHref(basePath, { ...state, maxPrice: 10000, page: 1 })}
           className={[
-            "inline-flex h-9 items-center rounded-full border px-3 text-sm font-semibold",
+            "inline-flex h-9 shrink-0 items-center rounded-full border px-3 text-sm font-semibold",
             state.maxPrice === 10000 ? "border-teal-200 bg-teal-50 text-teal-900" : "border-zinc-200 text-zinc-700 hover:border-teal-200",
           ].join(" ")}
         >
@@ -363,7 +364,7 @@ function CatalogControls({
         </Link>
       </div>
 
-      <form action={basePath} className="flex min-w-[260px] items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5">
+      <form action={basePath} className="flex w-full min-w-0 items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 sm:w-auto sm:min-w-[260px]">
         <ArrowUpDown className="size-4 shrink-0 text-zinc-500" aria-hidden />
         {state.query ? <input type="hidden" name="q" value={state.query} /> : null}
         {state.brand ? <input type="hidden" name="brand" value={state.brand} /> : null}
@@ -382,7 +383,7 @@ function CatalogControls({
             </option>
           ))}
         </select>
-        <button className="rounded-full bg-zinc-950 px-3 py-1 text-xs font-semibold text-white hover:bg-teal-800">Ок</button>
+        <button className="shrink-0 rounded-full bg-zinc-950 px-3 py-1 text-xs font-semibold text-white hover:bg-teal-800">Ок</button>
       </form>
     </div>
   );
@@ -524,6 +525,16 @@ export function CatalogView({
     sort,
     specFilters: currentSpecFilters,
   };
+  const activeFilterCount = countActiveCatalogFilters({
+    query: currentQuery,
+    brand: currentBrand,
+    onlyAvailable,
+    withPhoto,
+    minPrice,
+    maxPrice,
+    sort,
+    specFilters: currentSpecFilters,
+  });
   const pageHref = (nextPage: number) => {
     return catalogHref(basePath, { ...state, page: nextPage });
   };
@@ -544,16 +555,21 @@ export function CatalogView({
         <CatalogControls basePath={basePath} state={state} />
         <ActiveFilterChips basePath={basePath} state={state} specFilterOptions={specFilterOptions} />
 
-        <div className="mb-6 grid gap-3 lg:hidden">
-          <details open={Boolean(currentQuery || currentBrand || onlyAvailable || withPhoto || minPrice || maxPrice || sort !== "popular" || currentSpecFilters.length)} className="rounded-lg border border-zinc-200 bg-white p-4">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-bold uppercase tracking-wide text-zinc-600 [&::-webkit-details-marker]:hidden">
+        <div className="sticky top-16 z-30 mb-6 grid gap-2 bg-stone-50/95 py-2 backdrop-blur lg:hidden">
+          <details className="rounded-lg border border-zinc-200 bg-white shadow-sm">
+            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 text-sm font-bold uppercase tracking-wide text-zinc-700 [&::-webkit-details-marker]:hidden">
               <span className="inline-flex items-center gap-2">
                 <SlidersHorizontal className="size-4" aria-hidden />
-                Поиск и фильтры
+                Фильтры
+                {activeFilterCount ? (
+                  <span className="inline-flex min-w-6 justify-center rounded-full bg-teal-700 px-2 py-0.5 text-xs font-bold text-white">
+                    {activeFilterCount}
+                  </span>
+                ) : null}
               </span>
               <ChevronDown className="size-4 shrink-0 text-zinc-400" aria-hidden />
             </summary>
-            <div className="mt-4 grid gap-5">
+            <div className="grid gap-5 border-t border-zinc-100 p-4">
               <SearchPanel basePath={basePath} currentQuery={currentQuery} framed={false} />
               <FiltersPanel
                 basePath={basePath}
@@ -571,12 +587,17 @@ export function CatalogView({
               />
             </div>
           </details>
-          <details className="rounded-lg border border-zinc-200 bg-white p-4">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-bold uppercase tracking-wide text-zinc-600 [&::-webkit-details-marker]:hidden">
-              <span>Категории</span>
+          <details className="rounded-lg border border-zinc-200 bg-white shadow-sm">
+            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 text-sm font-bold uppercase tracking-wide text-zinc-700 [&::-webkit-details-marker]:hidden">
+              <span className="inline-flex items-center gap-2">
+                Категории
+                {currentCategorySlug ? <span className="size-2 rounded-full bg-teal-600" aria-hidden /> : null}
+              </span>
               <ChevronDown className="size-4 shrink-0 text-zinc-400" aria-hidden />
             </summary>
-            <CategoriesPanel categories={categories} currentCategorySlug={currentCategorySlug} framed={false} />
+            <div className="border-t border-zinc-100 p-4">
+              <CategoriesPanel categories={categories} currentCategorySlug={currentCategorySlug} framed={false} />
+            </div>
           </details>
         </div>
 

@@ -1,0 +1,28 @@
+import { describe, expect, it } from "vitest";
+import { countActiveCatalogFilters } from "@/lib/catalog-ui";
+
+describe("countActiveCatalogFilters", () => {
+  it("counts every customer-visible catalog constraint", () => {
+    expect(
+      countActiveCatalogFilters({
+        query: "ssd",
+        brand: "Samsung",
+        onlyAvailable: true,
+        withPhoto: true,
+        minPrice: 1000,
+        maxPrice: 5000,
+        sort: "price_asc",
+        specFilters: ["storage_ssd", "tv_4k"],
+      }),
+    ).toBe(8);
+  });
+
+  it("does not count the default sort or empty values", () => {
+    expect(
+      countActiveCatalogFilters({
+        sort: "popular",
+        specFilters: [],
+      }),
+    ).toBe(0);
+  });
+});

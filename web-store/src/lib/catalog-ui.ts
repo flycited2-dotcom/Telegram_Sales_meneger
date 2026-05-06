@@ -1,0 +1,26 @@
+import type { CatalogSort } from "@/lib/catalog-query";
+import type { CatalogSpecFilterValue } from "@/lib/catalog-spec-filters";
+
+export type CatalogUiFilterState = {
+  query?: string;
+  brand?: string;
+  onlyAvailable?: boolean;
+  withPhoto?: boolean;
+  minPrice?: number;
+  maxPrice?: number;
+  sort: CatalogSort;
+  specFilters: CatalogSpecFilterValue[];
+};
+
+export function countActiveCatalogFilters(state: CatalogUiFilterState): number {
+  let count = 0;
+
+  if (state.query) count += 1;
+  if (state.brand) count += 1;
+  if (state.onlyAvailable) count += 1;
+  if (state.withPhoto) count += 1;
+  if (state.minPrice || state.maxPrice) count += 1;
+  if (state.sort !== "popular") count += 1;
+
+  return count + state.specFilters.length;
+}
