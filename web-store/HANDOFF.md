@@ -102,6 +102,8 @@
 - Backup изменяемых файлов перед выкладкой order flow: `/var/www/climat-simf.ru.file-backup-order-flow-20260507013614`
 - Noindex для параметрических URL выложен на VPS: `npm run build` - passed, `pm2 restart climat-simf-store --update-env` - passed, `/catalog` - `200` без `noindex`, `/catalog?available=1&photo=1` - `200` с `noindex`, `/search?q=ssd` - `200` с `noindex`; `/robots.txt` - `200`, содержит `Disallow: /*?*` и `Disallow: /search`.
 - Backup изменяемых файлов перед выкладкой noindex filtered URLs: `/var/www/climat-simf.ru.file-backup-noindex-filtered-20260507015049`
+- Мобильная воронка каталога выложена на VPS: `npm run build` - passed, PM2 перезапущен через `ecosystem.config.cjs`, статус `online`; `https://climat-simf.ru/catalog?available=1&photo=1` - `200`, содержит `Фильтры`, `Категории`, `В наличии` и `noindex`; `/` - `200`; `/robots.txt` - `200`.
+- Backup изменяемых файлов перед выкладкой mobile catalog flow: `/var/www/climat-simf.ru.file-backup-mobile-catalog-20260507023146`
 - PM2 `climat-simf-store` - online
 
 Предыдущие проверки:
