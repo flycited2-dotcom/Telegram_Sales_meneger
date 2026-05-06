@@ -18,10 +18,12 @@ export function isDegradedRetailName(name: string | null | undefined): boolean {
 
 export function normalRetailNameWhere(): Prisma.ProductWhereInput {
   return {
-    NOT: degradedRetailNameTerms.map((term) => ({
-      OR: [
-        { supplierName: { contains: term, mode: "insensitive" } },
-        { name: { contains: term, mode: "insensitive" } },
+    AND: degradedRetailNameTerms.map((term) => ({
+      AND: [
+        { NOT: { supplierName: { contains: term, mode: "insensitive" } } },
+        {
+          OR: [{ name: null }, { NOT: { name: { contains: term, mode: "insensitive" } } }],
+        },
       ],
     })),
   };

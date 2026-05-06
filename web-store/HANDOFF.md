@@ -28,6 +28,7 @@
 - Поиск начал собирать популярные запросы в `Setting` без новой миграции; в админке появился блок `Популярные поиски` со ссылками обратно в выдачу.
 - Каталог получил первый слой категорийных фильтров по уже извлекаемым характеристикам из названий: производительность `л/сутки`, объем бака, `4K / UHD`, `Full HD`, `SSD`, оперативная память. Фильтры живут в URL как `spec=...`, работают на desktop и mobile, активные фильтры показываются чипами.
 - В карточку товара в каталоге добавлен раскрываемый быстрый заказ: клиент может оставить имя и телефон прямо из выдачи, заявка идет тем же server action и Telegram-путем, что и быстрый заказ на странице товара.
+- Исправлен null-safe фильтр уценки/б/у товаров: товары с пустым публичным `name` больше не выпадают из sitemap/home/related-выдачи только из-за SQL `NULL` в условии `NOT contains`.
 - Если поставщик не дает описание, сайт формирует клиентское автоописание из доступных данных товара.
 - Исправлена проблема с падением сайта из-за параллельных `sync:prices`: старый дублирующий cron отключен, синхронизация цен больше не делает тяжелый общий `UPDATE Product ... WHERE 1=1` в начале.
 - Добавлен индекс `ProductImage_productId_deleted_priority_idx` для ускорения выдачи первого фото товара.
@@ -65,7 +66,7 @@
 
 Локально:
 
-- `npm.cmd test` - 54 tests passed
+- `npm.cmd test` - 55 tests passed
 - `npm.cmd run lint` - passed
 - `npm.cmd run build` - passed
 
@@ -91,6 +92,8 @@
 - Backup изменяемых файлов перед выкладкой spec-фильтров: `/var/www/climat-simf.ru.file-backup-spec-filters-20260503031851`
 - Быстрый заказ из карточки каталога выложен на VPS: `npm run build` - passed, `pm2 restart climat-simf-store --update-env` - passed, после прогрева `/catalog?available=1&photo=1` - `200`, `/` - `200`, в HTML карточек есть поля quick order (`customerName`, `phone`, `personalDataConsent`).
 - Backup изменяемых файлов перед выкладкой быстрого заказа в карточке: `/var/www/climat-simf.ru.file-backup-card-quick-order-20260503110019`
+- Null-safe фильтр уценки/б/у выложен на VPS: серверный Prisma smoke `NORMAL_RETAIL_ROWS=5`, `npm run build` - passed, `pm2 restart climat-simf-store --update-env` - passed, `/sitemap.xml` - `200`, `/` - `200`, sitemap содержит `700` product URL и `300` category URL.
+- Backup изменяемых файлов перед выкладкой null-safe фильтра: `/var/www/climat-simf.ru.file-backup-retail-null-filter-fix-20260507011941`
 - PM2 `climat-simf-store` - online
 
 Предыдущие проверки:
