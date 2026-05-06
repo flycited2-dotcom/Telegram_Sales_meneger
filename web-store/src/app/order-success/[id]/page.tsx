@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { ClearCart } from "@/app/order-success/clear-cart";
 import { prisma } from "@/lib/db";
 import { formatRub } from "@/lib/format";
+import { buildCustomerOrderSteps } from "@/lib/order-status";
+import { phoneHref, storefront } from "@/lib/storefront";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +22,7 @@ export default async function OrderSuccessPage({ params }: Props) {
   if (!order) {
     notFound();
   }
+  const steps = buildCustomerOrderSteps();
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
@@ -45,9 +48,28 @@ export default async function OrderSuccessPage({ params }: Props) {
           <span className="font-semibold">Итого</span>
           <span className="text-2xl font-black">{formatRub(Number(order.total))}</span>
         </div>
-        <Link href="/catalog" className="mt-6 inline-flex h-11 items-center rounded-lg bg-teal-700 px-5 text-sm font-semibold text-white hover:bg-teal-800">
-          Вернуться в каталог
-        </Link>
+        <div className="mt-6 rounded-lg border border-zinc-200 bg-stone-50 p-4">
+          <h2 className="text-lg font-bold text-zinc-950">Что дальше</h2>
+          <div className="mt-4 grid gap-3">
+            {steps.map((step, index) => (
+              <div key={step.title} className="grid grid-cols-[28px_minmax(0,1fr)] gap-3 text-sm">
+                <span className="flex size-7 items-center justify-center rounded-full bg-teal-700 text-xs font-bold text-white">{index + 1}</span>
+                <span>
+                  <strong className="block text-zinc-950">{step.title}</strong>
+                  <span className="mt-1 block leading-5 text-zinc-600">{step.description}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link href="/catalog" className="inline-flex h-11 items-center rounded-lg bg-teal-700 px-5 text-sm font-semibold text-white hover:bg-teal-800">
+            Вернуться в каталог
+          </Link>
+          <a href={phoneHref(storefront.phones[0])} className="inline-flex h-11 items-center rounded-lg border border-zinc-200 px-5 text-sm font-semibold text-zinc-800 hover:border-teal-200 hover:text-teal-800">
+            Позвонить менеджеру
+          </a>
+        </div>
       </div>
     </div>
   );

@@ -3,6 +3,8 @@ import { AdminShell } from "@/components/admin-shell";
 import { requireAdmin } from "@/lib/admin-auth";
 import { prisma } from "@/lib/db";
 import { formatDateTime, formatRub } from "@/lib/format";
+import { orderStatusMeta } from "@/lib/order-status";
+import { phoneHref } from "@/lib/storefront";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +14,14 @@ export default async function AdminOrdersPage() {
     orderBy: { createdAt: "desc" },
     take: 100,
   });
+
+  const statusToneClasses = {
+    red: "bg-red-50 text-red-800",
+    amber: "bg-amber-50 text-amber-800",
+    blue: "bg-sky-50 text-sky-800",
+    green: "bg-emerald-50 text-emerald-800",
+    zinc: "bg-zinc-100 text-zinc-700",
+  };
 
   return (
     <AdminShell title="Заказы">
@@ -34,8 +44,17 @@ export default async function AdminOrdersPage() {
                     {order.orderNumber}
                   </Link>
                 </td>
-                <td className="px-4 py-3">{order.customerName}</td>
-                <td className="px-4 py-3">{order.status}</td>
+                <td className="px-4 py-3">
+                  <div className="font-medium text-zinc-950">{order.customerName}</div>
+                  <a href={phoneHref(order.phone)} className="text-xs font-semibold text-teal-800 hover:text-teal-950">
+                    {order.phone}
+                  </a>
+                </td>
+                <td className="px-4 py-3">
+                  <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusToneClasses[orderStatusMeta[order.status].tone]}`}>
+                    {orderStatusMeta[order.status].label}
+                  </span>
+                </td>
                 <td className="px-4 py-3">{formatRub(Number(order.total))}</td>
                 <td className="px-4 py-3">{formatDateTime(order.createdAt)}</td>
               </tr>
