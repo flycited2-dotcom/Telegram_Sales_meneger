@@ -33,7 +33,7 @@
 - Заказы стали понятнее для продаж: добавлены русские статусы заявок, цветные бейджи в списке/карточке заказа, быстрый звонок клиенту, план обработки заявки для менеджера и таймлайн `Что дальше` на странице успешной заявки.
 - SEO/нагрузка: параметрические URL каталога, фильтров, сортировок, пагинации и поиска теперь получают `noindex, follow`; `robots.txt` закрывает `/search`, админку, API и URL с query-параметрами, чтобы боты меньше грузили бесконечные фильтры.
 - Мобильный каталог стал плотнее и быстрее для воронки: липкий блок `Фильтры` / `Категории` с бейджем активных фильтров, горизонтальные быстрые фильтры без переполнения экрана, компактнее карточка товара на телефоне.
-- Добавлен безопасный deploy-инструмент `npm run deploy:vps`: собирает архив без `.env`/`.next`/`node_modules`, делает source-backup на VPS, запускает production build, проверяет `.next/prerender-manifest.json` и `.next/BUILD_ID`, перезапускает PM2 и делает healthcheck.
+- Добавлен безопасный deploy-инструмент `npm run deploy:vps`: собирает архив без `.env`/`.next`/`node_modules`, делает source-backup на VPS, запускает production build, проверяет `.next/prerender-manifest.json` и `.next/BUILD_ID`, перезапускает PM2 и делает healthcheck. После таймаута долгого build ожидание удаленной команды переведено на polling без SSH channel read timeout; добавлен `--remote-timeout`.
 - Зафиксировано ТЗ по фасетным фильтрам в `docs/FACET_FILTERS_TZ.md`; шаг 1 реализует расширенный слой категорийных фильтров без миграции базы: климат, холодильники, телевизоры, компьютеры, стиральные машины, группировка фильтров в UI и совместимый URL `spec=...`.
 - Если поставщик не дает описание, сайт формирует клиентское автоописание из доступных данных товара.
 - Исправлена проблема с падением сайта из-за параллельных `sync:prices`: старый дублирующий cron отключен, синхронизация цен больше не делает тяжелый общий `UPDATE Product ... WHERE 1=1` в начале.
@@ -108,6 +108,8 @@
 - Backup изменяемых файлов перед выкладкой noindex filtered URLs: `/var/www/climat-simf.ru.file-backup-noindex-filtered-20260507015049`
 - Мобильная воронка каталога выложена на VPS: `npm run build` - passed, PM2 перезапущен через `ecosystem.config.cjs`, статус `online`; `https://climat-simf.ru/catalog?available=1&photo=1` - `200`, содержит `Фильтры`, `Категории`, `В наличии` и `noindex`; `/` - `200`; `/robots.txt` - `200`.
 - Backup изменяемых файлов перед выкладкой mobile catalog flow: `/var/www/climat-simf.ru.file-backup-mobile-catalog-20260507023146`
+- Расширенные фасетные фильтры выложены на VPS после восстановления неполной `.next`: `npm run build` - passed, `.next/BUILD_ID` и `.next/prerender-manifest.json` присутствуют, PM2 `climat-simf-store` - online, локальный healthcheck `127.0.0.1:3001` - ok. Smoke: `/` - `200`, `/catalog?spec=tv_smart` - `200` и содержит `Smart TV` / `Доступно к заказу`, `/catalog?spec=fridge_no_frost` - `200` и содержит `No Frost` / `Доступно к заказу`, `/robots.txt` - `200`.
+- Backup source перед попыткой выкладки расширенных фасетных фильтров через deploy helper: `/var/www/climat-simf.ru.source-backup-20260507114907.tar.gz`
 - PM2 `climat-simf-store` - online
 
 Предыдущие проверки:

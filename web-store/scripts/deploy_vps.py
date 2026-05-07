@@ -133,6 +133,23 @@ def build_connect_kwargs(*, host: str, user: str, key_path: str | None, password
     return kwargs
 
 
+def run_remote_command(client, command: str, *, timeout_seconds: int, poll_interval: float = 5.0) -> tuple[int, str, str]:
+    _stdin, stdout, stderr = client.exec_command(command)
+    channel = stdout.channel
+    deadline = time.monotonic() + timeout_seconds
+
+    while not channel.exit_status_ready():
+        if time.monotonic() >= deadline:
+            channel.close()
+            raise TimeoutError(f"Remote command exceeded {timeout_seconds} seconds")
+        time.sleep(poll_interval)
+
+    out = stdout.read().decode("utf-8", errors="replace")
+    err = stderr.read().decode("utf-8", errors="replace")
+    code = channel.recv_exit_status()
+    return code, out, err
+
+
 def main() -> int:
     project_root = Path(__file__).resolve().parents[1]
     load_dotenv_if_available(project_root)
@@ -145,6 +162,7 @@ def main() -> int:
     parser.add_argument("--public-url", default=os.getenv("WEB_STORE_PUBLIC_URL") or PUBLIC_URL)
     parser.add_argument("--key-path", default=os.getenv("WEB_STORE_SSH_KEY_PATH"))
     parser.add_argument("--install", action="store_true", help="Run npm ci on the server before build.")
+    parser.add_argument("--remote-timeout", type=int, default=int(os.getenv("WEB_STORE_REMOTE_TIMEOUT") or "1800"))
     parser.add_argument("--skip-public-healthcheck", action="store_true")
     args = parser.parse_args()
 
@@ -189,10 +207,11 @@ def main() -> int:
         )
         command = f"{backup_command}\n{extract_command}\n{deploy_command}\nrm -f {shlex.quote(remote_archive)}"
 
-        stdin, stdout, stderr = client.exec_command(f"bash -lc {shlex.quote(command)}", timeout=900)
-        out = stdout.read().decode("utf-8", errors="replace")
-        err = stderr.read().decode("utf-8", errors="replace")
-        code = stdout.channel.recv_exit_status()
+        code, out, err = run_remote_command(
+            client,
+            f"bash -lc {shlex.quote(command)}",
+            timeout_seconds=args.remote_timeout,
+        )
         if code != 0:
             print(out[-4000:])
             print(err[-4000:], file=sys.stderr)

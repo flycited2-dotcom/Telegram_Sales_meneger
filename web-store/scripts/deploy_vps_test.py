@@ -1,6 +1,37 @@
 import unittest
 
-from scripts.deploy_vps import build_connect_kwargs, build_remote_deploy_script, should_include_archive_path
+from scripts.deploy_vps import (
+    build_connect_kwargs,
+    build_remote_deploy_script,
+    run_remote_command,
+    should_include_archive_path,
+)
+
+
+class _ReadyChannel:
+    def exit_status_ready(self):
+        return True
+
+    def recv_exit_status(self):
+        return 0
+
+
+class _FakeStream:
+    def __init__(self, payload: bytes):
+        self.channel = _ReadyChannel()
+        self._payload = payload
+
+    def read(self):
+        return self._payload
+
+
+class _FakeClient:
+    def __init__(self):
+        self.exec_command_kwargs = None
+
+    def exec_command(self, command, **kwargs):
+        self.exec_command_kwargs = kwargs
+        return None, _FakeStream(b"ok"), _FakeStream(b"")
 
 
 class DeployVpsTests(unittest.TestCase):
@@ -58,6 +89,16 @@ class DeployVpsTests(unittest.TestCase):
         self.assertEqual(kwargs["username"], "root")
         self.assertEqual(kwargs["key_filename"], "C:/Users/user/.ssh/climat_simf_deploy")
         self.assertNotIn("password", kwargs)
+
+    def test_remote_command_does_not_use_channel_read_timeout(self):
+        client = _FakeClient()
+
+        code, out, err = run_remote_command(client, "bash -lc true", timeout_seconds=30, poll_interval=0)
+
+        self.assertEqual(code, 0)
+        self.assertEqual(out, "ok")
+        self.assertEqual(err, "")
+        self.assertEqual(client.exec_command_kwargs, {})
 
 
 if __name__ == "__main__":
