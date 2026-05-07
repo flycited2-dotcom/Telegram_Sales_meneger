@@ -262,7 +262,12 @@ function FiltersPanel({
                         defaultChecked={currentSpecFilters.includes(option.key)}
                         className="size-4 accent-teal-700"
                       />
-                      {option.label}
+                      <span className="min-w-0 flex-1">{option.label}</span>
+                      {typeof option.count === "number" ? (
+                        <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500">
+                          {option.count.toLocaleString("ru-RU")}
+                        </span>
+                      ) : null}
                     </label>
                   ))}
                 </div>

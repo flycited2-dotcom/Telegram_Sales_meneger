@@ -3,8 +3,10 @@ import { unstable_cache } from "next/cache";
 import { buildCategoryTree, collectDescendantCategoryIds, type CategoryTreeItem, type FlatCategory } from "@/lib/catalog-tree";
 import { normalizeCatalogBrandValues, type CatalogSort } from "@/lib/catalog-query";
 import {
+  attachCatalogSpecFilterCounts,
   buildCatalogSpecFilterWhere,
   getCatalogSpecFilterOptions,
+  type CatalogSpecFilterOption,
   type CatalogSpecFilterValue,
 } from "@/lib/catalog-spec-filters";
 import { prisma } from "@/lib/db";
@@ -217,6 +219,33 @@ function toProductWhereArray(value: Prisma.ProductWhereInput["AND"]): Prisma.Pro
   return Array.isArray(value) ? value : [value];
 }
 
+function applySelectedBrands(where: Prisma.ProductWhereInput, selectedBrands: string[]) {
+  if (selectedBrands.length === 1) {
+    where.vendor = selectedBrands[0];
+  } else if (selectedBrands.length > 1) {
+    where.vendor = {
+      in: selectedBrands,
+    };
+  }
+}
+
+async function getCatalogSpecFilterCounts(options: CatalogSpecFilterOption[], baseWhere: Prisma.ProductWhereInput) {
+  const counts = new Map<CatalogSpecFilterValue, number>();
+
+  for (const option of options) {
+    const where: Prisma.ProductWhereInput = { ...baseWhere };
+    const specWhere = buildCatalogSpecFilterWhere([option.key]);
+    const specAnd = toProductWhereArray(specWhere.AND);
+    if (specAnd.length) {
+      where.AND = [...toProductWhereArray(where.AND), ...specAnd];
+    }
+
+    counts.set(option.key, await prisma.product.count({ where }));
+  }
+
+  return counts;
+}
+
 export async function getCatalogPage(query: CatalogQuery) {
   const page = Math.max(query.page ?? 1, 1);
   const selectedBrands = normalizeCatalogBrandValues([...(query.brands ?? []), query.brand]);
@@ -272,6 +301,13 @@ export async function getCatalogPage(query: CatalogQuery) {
     filteredWhere.retailPrice = priceFilter;
   }
 
+  const specFilterOptions = getCatalogSpecFilterOptions({
+    categoryName: category?.name,
+    activeFilters: query.specFilters,
+  });
+  const specCountBaseWhere: Prisma.ProductWhereInput = { ...filteredWhere };
+  applySelectedBrands(specCountBaseWhere, selectedBrands);
+
   const specWhere = buildCatalogSpecFilterWhere(query.specFilters ?? []);
   const specAnd = toProductWhereArray(specWhere.AND);
   if (specAnd.length) {
@@ -285,15 +321,9 @@ export async function getCatalogPage(query: CatalogQuery) {
     },
   };
 
-  if (selectedBrands.length === 1) {
-    filteredWhere.vendor = selectedBrands[0];
-  } else if (selectedBrands.length > 1) {
-    filteredWhere.vendor = {
-      in: selectedBrands,
-    };
-  }
+  applySelectedBrands(filteredWhere, selectedBrands);
 
-  const [products, total, categories, brands] = await Promise.all([
+  const [products, total, categories, brands, specFilterCounts] = await Promise.all([
     prisma.product.findMany({
       where: filteredWhere,
       include: {
@@ -315,6 +345,7 @@ export async function getCatalogPage(query: CatalogQuery) {
     prisma.product.count({ where: filteredWhere }),
     getCatalogCategoryTree(allCategories),
     getCatalogBrands(brandWhere),
+    getCatalogSpecFilterCounts(specFilterOptions, specCountBaseWhere),
   ]);
 
   return {
@@ -325,10 +356,7 @@ export async function getCatalogPage(query: CatalogQuery) {
     perPage: PRODUCTS_PER_PAGE,
     categories,
     brands: brands.map((row) => row.vendor).filter(Boolean) as string[],
-    specFilterOptions: getCatalogSpecFilterOptions({
-      categoryName: category?.name,
-      activeFilters: query.specFilters,
-    }),
+    specFilterOptions: attachCatalogSpecFilterCounts(specFilterOptions, specFilterCounts),
   };
 }
 

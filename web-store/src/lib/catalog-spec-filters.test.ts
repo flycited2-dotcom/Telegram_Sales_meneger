@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  attachCatalogSpecFilterCounts,
   buildCatalogSpecFilterWhere,
   getCatalogSpecFilterOptions,
   normalizeCatalogSpecFilterValues,
@@ -101,5 +102,15 @@ describe("catalog spec filters", () => {
         }),
       ]),
     );
+  });
+
+  it("attaches counts to visible spec filter options", () => {
+    const options = getCatalogSpecFilterOptions({ categoryName: "Телевизоры" });
+
+    expect(attachCatalogSpecFilterCounts(options, new Map([["tv_smart", 42]]))).toEqual([
+      { key: "tv_4k", label: "4K / UHD", groupLabel: "Телевизоры", count: 0 },
+      { key: "tv_full_hd", label: "Full HD", groupLabel: "Телевизоры", count: 0 },
+      { key: "tv_smart", label: "Smart TV", groupLabel: "Телевизоры", count: 42 },
+    ]);
   });
 });

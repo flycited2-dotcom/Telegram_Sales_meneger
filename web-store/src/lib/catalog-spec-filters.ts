@@ -27,6 +27,7 @@ export type CatalogSpecFilterOption = {
   key: CatalogSpecFilterValue;
   label: string;
   groupLabel: string;
+  count?: number;
 };
 
 type CatalogSpecFilterDefinition = CatalogSpecFilterOption & {
@@ -285,6 +286,16 @@ export function getCatalogSpecFilterOptions({
 
 export function getCatalogSpecFilterLabel(value: CatalogSpecFilterValue): string {
   return specFilterByKey.get(value)?.label ?? value;
+}
+
+export function attachCatalogSpecFilterCounts(
+  options: CatalogSpecFilterOption[],
+  counts: Map<CatalogSpecFilterValue, number>,
+): CatalogSpecFilterOption[] {
+  return options.map((option) => ({
+    ...option,
+    count: counts.get(option.key) ?? 0,
+  }));
 }
 
 export function buildCatalogSpecFilterWhere(values: CatalogSpecFilterValue[]): Prisma.ProductWhereInput {
