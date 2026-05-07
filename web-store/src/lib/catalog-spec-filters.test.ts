@@ -65,12 +65,30 @@ describe("catalog spec filters", () => {
       expect.arrayContaining([
         expect.objectContaining({
           OR: expect.arrayContaining([
+            {
+              attributes: {
+                some: {
+                  key: "resolution",
+                  normalizedValue: {
+                    in: ["4k", "4k_uhd"],
+                  },
+                },
+              },
+            },
             { name: { contains: "4k", mode: "insensitive" } },
             { supplierName: { contains: "4k", mode: "insensitive" } },
           ]),
         }),
         expect.objectContaining({
           OR: expect.arrayContaining([
+            {
+              attributes: {
+                some: {
+                  key: "storage_type",
+                  normalizedValue: "ssd",
+                },
+              },
+            },
             { name: { contains: "ssd", mode: "insensitive" } },
             { supplierName: { contains: "ssd", mode: "insensitive" } },
           ]),

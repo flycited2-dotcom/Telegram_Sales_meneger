@@ -32,6 +32,7 @@ export type CatalogSpecFilterOption = {
 type CatalogSpecFilterDefinition = CatalogSpecFilterOption & {
   categoryHints: string[];
   searchTerms: string[];
+  attributeFilters?: Prisma.ProductWhereInput[];
 };
 
 const specFilterDefinitions: CatalogSpecFilterDefinition[] = [
@@ -62,6 +63,15 @@ const specFilterDefinitions: CatalogSpecFilterDefinition[] = [
     groupLabel: "Климат",
     categoryHints: ["осушител", "климат", "воздух"],
     searchTerms: ["л/сут", "л / сут"],
+    attributeFilters: [
+      {
+        attributes: {
+          some: {
+            key: "daily_capacity",
+          },
+        },
+      },
+    ],
   },
   {
     key: "tank_volume",
@@ -69,6 +79,15 @@ const specFilterDefinitions: CatalogSpecFilterDefinition[] = [
     groupLabel: "Климат",
     categoryHints: ["осушител", "увлажнител", "мойк", "воздух"],
     searchTerms: ["бак", "резервуар"],
+    attributeFilters: [
+      {
+        attributes: {
+          some: {
+            key: "tank_volume",
+          },
+        },
+      },
+    ],
   },
   {
     key: "fridge_no_frost",
@@ -97,6 +116,18 @@ const specFilterDefinitions: CatalogSpecFilterDefinition[] = [
     groupLabel: "Телевизоры",
     categoryHints: ["телевиз", "тв", "видеотехника"],
     searchTerms: ["4k", "4 k", "uhd"],
+    attributeFilters: [
+      {
+        attributes: {
+          some: {
+            key: "resolution",
+            normalizedValue: {
+              in: ["4k", "4k_uhd"],
+            },
+          },
+        },
+      },
+    ],
   },
   {
     key: "tv_full_hd",
@@ -104,6 +135,16 @@ const specFilterDefinitions: CatalogSpecFilterDefinition[] = [
     groupLabel: "Телевизоры",
     categoryHints: ["телевиз", "тв", "видеотехника"],
     searchTerms: ["full hd", "fhd"],
+    attributeFilters: [
+      {
+        attributes: {
+          some: {
+            key: "resolution",
+            normalizedValue: "full_hd",
+          },
+        },
+      },
+    ],
   },
   {
     key: "tv_smart",
@@ -111,6 +152,16 @@ const specFilterDefinitions: CatalogSpecFilterDefinition[] = [
     groupLabel: "Телевизоры",
     categoryHints: ["телевиз", "тв", "видеотехника"],
     searchTerms: ["smart", "смарт"],
+    attributeFilters: [
+      {
+        attributes: {
+          some: {
+            key: "smart_tv",
+            normalizedValue: "yes",
+          },
+        },
+      },
+    ],
   },
   {
     key: "storage_ssd",
@@ -118,6 +169,16 @@ const specFilterDefinitions: CatalogSpecFilterDefinition[] = [
     groupLabel: "Компьютеры",
     categoryHints: ["ноутбук", "компьют", "моноблок", "пк", "накопител"],
     searchTerms: ["ssd"],
+    attributeFilters: [
+      {
+        attributes: {
+          some: {
+            key: "storage_type",
+            normalizedValue: "ssd",
+          },
+        },
+      },
+    ],
   },
   {
     key: "computer_ram",
@@ -125,6 +186,15 @@ const specFilterDefinitions: CatalogSpecFilterDefinition[] = [
     groupLabel: "Компьютеры",
     categoryHints: ["ноутбук", "компьют", "моноблок", "пк", "планшет"],
     searchTerms: ["ram", "оператив"],
+    attributeFilters: [
+      {
+        attributes: {
+          some: {
+            key: "ram",
+          },
+        },
+      },
+    ],
   },
   {
     key: "laptop",
@@ -230,10 +300,13 @@ export function buildCatalogSpecFilterWhere(values: CatalogSpecFilterValue[]): P
 
       return [
         {
-          OR: definition.searchTerms.flatMap((term) => [
-            { name: { contains: term, mode: "insensitive" as const } },
-            { supplierName: { contains: term, mode: "insensitive" as const } },
-          ]),
+          OR: [
+            ...(definition.attributeFilters ?? []),
+            ...definition.searchTerms.flatMap((term) => [
+              { name: { contains: term, mode: "insensitive" as const } },
+              { supplierName: { contains: term, mode: "insensitive" as const } },
+            ]),
+          ],
         },
       ];
     }),
