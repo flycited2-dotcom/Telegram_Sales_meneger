@@ -9,6 +9,7 @@
 - App path на VPS: `/var/www/climat-simf.ru`
 - PM2 process: `climat-simf-store`
 - Домен и HTTPS работают через Nginx и Let's Encrypt.
+- SSH-ключ для deploy настроен: локальный приватный ключ `C:\Users\user\.ssh\climat_simf_deploy`, публичный ключ добавлен в `/root/.ssh/authorized_keys` на VPS. Для `npm run deploy:vps` можно использовать `WEB_STORE_SSH_KEY_PATH`.
 
 ## Что уже сделано
 
