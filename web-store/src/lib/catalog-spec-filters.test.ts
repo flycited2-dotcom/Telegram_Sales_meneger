@@ -20,6 +20,8 @@ describe("catalog spec filters", () => {
       { key: "tv_4k", label: "4K / UHD", groupLabel: "Телевизоры" },
       { key: "tv_full_hd", label: "Full HD", groupLabel: "Телевизоры" },
       { key: "tv_smart", label: "Smart TV", groupLabel: "Телевизоры" },
+      { key: "tv_55_plus", label: "От 55 дюймов", groupLabel: "Телевизоры" },
+      { key: "tv_65_plus", label: "От 65 дюймов", groupLabel: "Телевизоры" },
       { key: "storage_ssd", label: "SSD", groupLabel: "Компьютеры" },
     ]);
   });
@@ -54,7 +56,10 @@ describe("catalog spec filters", () => {
     expect(getCatalogSpecFilterOptions({ categoryName: "Осушители и увлажнители воздуха" })).toEqual([
       { key: "air_purification", label: "Очистка воздуха", groupLabel: "Климат" },
       { key: "daily_capacity", label: "Производительность, л/сутки", groupLabel: "Климат" },
+      { key: "daily_capacity_20_plus", label: "От 20 л/сутки", groupLabel: "Климат" },
+      { key: "daily_capacity_50_plus", label: "От 50 л/сутки", groupLabel: "Климат" },
       { key: "tank_volume", label: "Объем бака, л", groupLabel: "Климат" },
+      { key: "tank_volume_3_plus", label: "Бак от 3 л", groupLabel: "Климат" },
     ]);
   });
 
@@ -104,6 +109,57 @@ describe("catalog spec filters", () => {
     );
   });
 
+  it("builds numeric attribute conditions for richer spec filters", () => {
+    const where = buildCatalogSpecFilterWhere(["tv_55_plus", "storage_512_plus", "daily_capacity_20_plus"]);
+
+    expect(where.AND).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          OR: expect.arrayContaining([
+            {
+              attributes: {
+                some: {
+                  key: "screen_diagonal",
+                  numericValue: {
+                    gte: 55,
+                  },
+                },
+              },
+            },
+          ]),
+        }),
+        expect.objectContaining({
+          OR: expect.arrayContaining([
+            {
+              attributes: {
+                some: {
+                  key: "storage_capacity",
+                  numericValue: {
+                    gte: 512,
+                  },
+                },
+              },
+            },
+          ]),
+        }),
+        expect.objectContaining({
+          OR: expect.arrayContaining([
+            {
+              attributes: {
+                some: {
+                  key: "daily_capacity",
+                  numericValue: {
+                    gte: 20,
+                  },
+                },
+              },
+            },
+          ]),
+        }),
+      ]),
+    );
+  });
+
   it("attaches counts to visible spec filter options", () => {
     const options = getCatalogSpecFilterOptions({ categoryName: "Телевизоры" });
 
@@ -111,6 +167,8 @@ describe("catalog spec filters", () => {
       { key: "tv_4k", label: "4K / UHD", groupLabel: "Телевизоры", count: 0 },
       { key: "tv_full_hd", label: "Full HD", groupLabel: "Телевизоры", count: 0 },
       { key: "tv_smart", label: "Smart TV", groupLabel: "Телевизоры", count: 42 },
+      { key: "tv_55_plus", label: "От 55 дюймов", groupLabel: "Телевизоры", count: 0 },
+      { key: "tv_65_plus", label: "От 65 дюймов", groupLabel: "Телевизоры", count: 0 },
     ]);
   });
 });

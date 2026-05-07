@@ -5,15 +5,22 @@ export const catalogSpecFilterValues = [
   "ac_inverter",
   "air_purification",
   "daily_capacity",
+  "daily_capacity_20_plus",
+  "daily_capacity_50_plus",
   "tank_volume",
+  "tank_volume_3_plus",
   "fridge_no_frost",
   "fridge_two_chamber",
   "freezer",
   "tv_4k",
   "tv_full_hd",
   "tv_smart",
+  "tv_55_plus",
+  "tv_65_plus",
   "storage_ssd",
+  "storage_512_plus",
   "computer_ram",
+  "ram_16_plus",
   "laptop",
   "gaming",
   "washer_narrow",
@@ -75,6 +82,44 @@ const specFilterDefinitions: CatalogSpecFilterDefinition[] = [
     ],
   },
   {
+    key: "daily_capacity_20_plus",
+    label: "От 20 л/сутки",
+    groupLabel: "Климат",
+    categoryHints: ["осушител", "климат", "воздух"],
+    searchTerms: [],
+    attributeFilters: [
+      {
+        attributes: {
+          some: {
+            key: "daily_capacity",
+            numericValue: {
+              gte: 20,
+            },
+          },
+        },
+      },
+    ],
+  },
+  {
+    key: "daily_capacity_50_plus",
+    label: "От 50 л/сутки",
+    groupLabel: "Климат",
+    categoryHints: ["осушител", "климат", "воздух"],
+    searchTerms: [],
+    attributeFilters: [
+      {
+        attributes: {
+          some: {
+            key: "daily_capacity",
+            numericValue: {
+              gte: 50,
+            },
+          },
+        },
+      },
+    ],
+  },
+  {
     key: "tank_volume",
     label: "Объем бака, л",
     groupLabel: "Климат",
@@ -85,6 +130,25 @@ const specFilterDefinitions: CatalogSpecFilterDefinition[] = [
         attributes: {
           some: {
             key: "tank_volume",
+          },
+        },
+      },
+    ],
+  },
+  {
+    key: "tank_volume_3_plus",
+    label: "Бак от 3 л",
+    groupLabel: "Климат",
+    categoryHints: ["осушител", "увлажнител", "мойк", "воздух"],
+    searchTerms: [],
+    attributeFilters: [
+      {
+        attributes: {
+          some: {
+            key: "tank_volume",
+            numericValue: {
+              gte: 3,
+            },
           },
         },
       },
@@ -165,6 +229,44 @@ const specFilterDefinitions: CatalogSpecFilterDefinition[] = [
     ],
   },
   {
+    key: "tv_55_plus",
+    label: "От 55 дюймов",
+    groupLabel: "Телевизоры",
+    categoryHints: ["телевиз", "тв", "видеотехника"],
+    searchTerms: [],
+    attributeFilters: [
+      {
+        attributes: {
+          some: {
+            key: "screen_diagonal",
+            numericValue: {
+              gte: 55,
+            },
+          },
+        },
+      },
+    ],
+  },
+  {
+    key: "tv_65_plus",
+    label: "От 65 дюймов",
+    groupLabel: "Телевизоры",
+    categoryHints: ["телевиз", "тв", "видеотехника"],
+    searchTerms: [],
+    attributeFilters: [
+      {
+        attributes: {
+          some: {
+            key: "screen_diagonal",
+            numericValue: {
+              gte: 65,
+            },
+          },
+        },
+      },
+    ],
+  },
+  {
     key: "storage_ssd",
     label: "SSD",
     groupLabel: "Компьютеры",
@@ -182,6 +284,25 @@ const specFilterDefinitions: CatalogSpecFilterDefinition[] = [
     ],
   },
   {
+    key: "storage_512_plus",
+    label: "Накопитель от 512 ГБ",
+    groupLabel: "Компьютеры",
+    categoryHints: ["ноутбук", "компьют", "моноблок", "пк", "накопител"],
+    searchTerms: [],
+    attributeFilters: [
+      {
+        attributes: {
+          some: {
+            key: "storage_capacity",
+            numericValue: {
+              gte: 512,
+            },
+          },
+        },
+      },
+    ],
+  },
+  {
     key: "computer_ram",
     label: "Оперативная память",
     groupLabel: "Компьютеры",
@@ -192,6 +313,25 @@ const specFilterDefinitions: CatalogSpecFilterDefinition[] = [
         attributes: {
           some: {
             key: "ram",
+          },
+        },
+      },
+    ],
+  },
+  {
+    key: "ram_16_plus",
+    label: "RAM от 16 ГБ",
+    groupLabel: "Компьютеры",
+    categoryHints: ["ноутбук", "компьют", "моноблок", "пк", "планшет"],
+    searchTerms: [],
+    attributeFilters: [
+      {
+        attributes: {
+          some: {
+            key: "ram",
+            numericValue: {
+              gte: 16,
+            },
           },
         },
       },
