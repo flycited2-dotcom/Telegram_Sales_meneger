@@ -139,40 +139,39 @@ export const getHomeSnapshot = unstable_cache(async () => {
 
   const allCategories = await getActiveCategories();
   const excludedCategoryIds = getExcludedCategoryIds(allCategories);
-  const [categories, products] = await Promise.all([
-    getCatalogCategoryTree(allCategories),
-    prisma.product.findMany({
-      where: {
-        isActive: true,
-        isVisible: true,
-        isAvailable: true,
-        ...(excludedCategoryIds.length
-          ? {
-              categoryId: {
-                notIn: excludedCategoryIds,
-              },
-            }
-          : {}),
-        retailPrice: {
-          not: null,
-        },
-        ...normalRetailNameWhere(),
+  // Keep storefront DB reads sequential: production Prisma pool is intentionally small.
+  const categories = await getCatalogCategoryTree(allCategories);
+  const products = await prisma.product.findMany({
+    where: {
+      isActive: true,
+      isVisible: true,
+      isAvailable: true,
+      ...(excludedCategoryIds.length
+        ? {
+            categoryId: {
+              notIn: excludedCategoryIds,
+            },
+          }
+        : {}),
+      retailPrice: {
+        not: null,
       },
-      include: {
-        images: {
-          where: {
-            deleted: false,
-          },
-          orderBy: {
-            priority: "asc",
-          },
-          take: 1,
+      ...normalRetailNameWhere(),
+    },
+    include: {
+      images: {
+        where: {
+          deleted: false,
         },
+        orderBy: {
+          priority: "asc",
+        },
+        take: 1,
       },
-      orderBy: [{ hasImage: "desc" }, { updatedAt: "desc" }],
-      take: 8,
-    }),
-  ]);
+    },
+    orderBy: [{ hasImage: "desc" }, { updatedAt: "desc" }],
+    take: 8,
+  });
 
   return { categories, products };
 }, ["home-snapshot"], { revalidate: STOREFRONT_CACHE_SECONDS, tags: ["catalog", "products"] });
@@ -324,30 +323,29 @@ export async function getCatalogPage(query: CatalogQuery) {
 
   applySelectedBrands(filteredWhere, selectedBrands);
 
-  const [products, total, categories, brands, specFilterCounts] = await Promise.all([
-    prisma.product.findMany({
-      where: filteredWhere,
-      include: {
-        category: true,
-        images: {
-          where: {
-            deleted: false,
-          },
-          orderBy: {
-            priority: "asc",
-          },
-          take: 1,
+  // Keep catalog DB reads sequential to avoid P2024 timeouts during cold cache revalidation.
+  const products = await prisma.product.findMany({
+    where: filteredWhere,
+    include: {
+      category: true,
+      images: {
+        where: {
+          deleted: false,
         },
+        orderBy: {
+          priority: "asc",
+        },
+        take: 1,
       },
-      orderBy: catalogProductOrderBy(query.sort),
-      skip: (page - 1) * PRODUCTS_PER_PAGE,
-      take: PRODUCTS_PER_PAGE,
-    }),
-    prisma.product.count({ where: filteredWhere }),
-    getCatalogCategoryTree(allCategories),
-    getCatalogBrands(brandWhere),
-    getCatalogSpecFilterCounts(specFilterOptions, specCountBaseWhere),
-  ]);
+    },
+    orderBy: catalogProductOrderBy(query.sort),
+    skip: (page - 1) * PRODUCTS_PER_PAGE,
+    take: PRODUCTS_PER_PAGE,
+  });
+  const total = await prisma.product.count({ where: filteredWhere });
+  const categories = await getCatalogCategoryTree(allCategories);
+  const brands = await getCatalogBrands(brandWhere);
+  const specFilterCounts = await getCatalogSpecFilterCounts(specFilterOptions, specCountBaseWhere);
 
   return {
     category,
