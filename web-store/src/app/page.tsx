@@ -6,7 +6,7 @@ import { CatalogGrid } from "@/components/catalog-grid";
 import { getHomeSnapshot } from "@/lib/catalog";
 import { phoneHref, storefront } from "@/lib/storefront";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "БытТехОпт - бытовая техника, электроника и товары для дома",

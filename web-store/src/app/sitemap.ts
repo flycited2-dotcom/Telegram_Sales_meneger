@@ -1,9 +1,48 @@
 import type { MetadataRoute } from "next";
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
 import { normalRetailNameWhere } from "@/lib/retail-products";
 import { storefront } from "@/lib/storefront";
 
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
+
+const getSitemapCatalogEntries = unstable_cache(async () => {
+  const [categories, products] = await Promise.all([
+    prisma.category.findMany({
+      where: {
+        isActive: true,
+        isVisible: true,
+      },
+      select: {
+        slug: true,
+        updatedAt: true,
+      },
+      orderBy: {
+        updatedAt: "desc",
+      },
+      take: 300,
+    }),
+    prisma.product.findMany({
+      where: {
+        isActive: true,
+        isVisible: true,
+        isAvailable: true,
+        retailPrice: {
+          not: null,
+        },
+        ...normalRetailNameWhere(),
+      },
+      select: {
+        slug: true,
+        updatedAt: true,
+      },
+      orderBy: [{ hasImage: "desc" }, { updatedAt: "desc" }],
+      take: 700,
+    }),
+  ]);
+
+  return { categories, products };
+}, ["sitemap-catalog-entries"], { revalidate: 3600, tags: ["catalog", "products"] });
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
@@ -39,39 +78,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }
 
   try {
-    const [categories, products] = await Promise.all([
-      prisma.category.findMany({
-        where: {
-          isActive: true,
-          isVisible: true,
-        },
-        select: {
-          slug: true,
-          updatedAt: true,
-        },
-        orderBy: {
-          updatedAt: "desc",
-        },
-        take: 300,
-      }),
-      prisma.product.findMany({
-        where: {
-          isActive: true,
-          isVisible: true,
-          isAvailable: true,
-          retailPrice: {
-            not: null,
-          },
-          ...normalRetailNameWhere(),
-        },
-        select: {
-          slug: true,
-          updatedAt: true,
-        },
-        orderBy: [{ hasImage: "desc" }, { updatedAt: "desc" }],
-        take: 700,
-      }),
-    ]);
+    const { categories, products } = await getSitemapCatalogEntries();
 
     return [
       ...staticRoutes,
