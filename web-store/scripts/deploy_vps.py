@@ -71,9 +71,16 @@ def build_remote_deploy_script(
             "test -s .next/BUILD_ID",
             f"pm2 delete {quoted_process} >/tmp/{process_name}-pm2.log 2>&1 || true",
             "pm2 start ecosystem.config.cjs --update-env",
-            "sleep 5",
             "pm2 jlist >/tmp/climat-simf-pm2.json",
-            "curl -fsS -m 30 http://127.0.0.1:3001/ >/tmp/climat-simf-health.html",
+            "for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do",
+            "  if curl -fsS -m 30 http://127.0.0.1:3001/ >/tmp/climat-simf-health.html; then",
+            "    break",
+            "  fi",
+            "  if [ \"$attempt\" -eq 12 ]; then",
+            "    exit 1",
+            "  fi",
+            "  sleep 5",
+            "done",
         ]
     )
 
@@ -131,6 +138,11 @@ def build_connect_kwargs(*, host: str, user: str, key_path: str | None, password
     if password:
         kwargs["password"] = password
     return kwargs
+
+
+def printable_tail(text: str, *, limit: int = 4000, encoding: str | None = None) -> str:
+    output_encoding = encoding or sys.stdout.encoding or "utf-8"
+    return text[-limit:].encode(output_encoding, errors="replace").decode(output_encoding, errors="replace")
 
 
 def run_remote_command(client, command: str, *, timeout_seconds: int, poll_interval: float = 5.0) -> tuple[int, str, str]:
@@ -213,8 +225,8 @@ def main() -> int:
             timeout_seconds=args.remote_timeout,
         )
         if code != 0:
-            print(out[-4000:])
-            print(err[-4000:], file=sys.stderr)
+            print(printable_tail(out, encoding=sys.stdout.encoding))
+            print(printable_tail(err, encoding=sys.stderr.encoding), file=sys.stderr)
             raise SystemExit(code)
     finally:
         client.close()

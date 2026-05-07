@@ -3,6 +3,7 @@ import unittest
 from scripts.deploy_vps import (
     build_connect_kwargs,
     build_remote_deploy_script,
+    printable_tail,
     run_remote_command,
     should_include_archive_path,
 )
@@ -76,6 +77,7 @@ class DeployVpsTests(unittest.TestCase):
         self.assertLess(manifest_index, restart_index)
         self.assertLess(restart_index, health_index)
         self.assertIn("set -euo pipefail", script)
+        self.assertIn("for attempt in 1 2 3 4 5 6 7 8 9 10 11 12", script)
 
     def test_connect_kwargs_support_key_auth_without_password(self):
         kwargs = build_connect_kwargs(
@@ -99,6 +101,9 @@ class DeployVpsTests(unittest.TestCase):
         self.assertEqual(out, "ok")
         self.assertEqual(err, "")
         self.assertEqual(client.exec_command_kwargs, {})
+
+    def test_printable_tail_replaces_characters_missing_from_console_encoding(self):
+        self.assertEqual(printable_tail("ok ✓", encoding="cp1251"), "ok ?")
 
 
 if __name__ == "__main__":
