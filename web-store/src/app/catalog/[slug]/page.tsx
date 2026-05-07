@@ -48,7 +48,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const data = await getCatalogPage({
     categorySlug: slug,
     query: filters.query,
-    brand: filters.brand,
+    brands: filters.brands,
     available: filters.onlyAvailable,
     withPhoto: filters.withPhoto,
     minPrice: filters.minPrice,
@@ -73,7 +73,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       brands={data.brands}
       currentCategorySlug={data.category.slug}
       currentQuery={filters.query}
-      currentBrand={filters.brand}
+      currentBrands={filters.brands}
       onlyAvailable={filters.onlyAvailable}
       withPhoto={filters.withPhoto}
       minPrice={filters.minPrice}

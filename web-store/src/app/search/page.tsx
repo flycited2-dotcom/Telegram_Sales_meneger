@@ -28,7 +28,7 @@ export default async function SearchPage({ searchParams }: Props) {
     [data] = await Promise.all([
       getCatalogPage({
         query,
-        brand: filters.brand,
+        brands: filters.brands,
         available: filters.onlyAvailable,
         withPhoto: filters.withPhoto,
         minPrice: filters.minPrice,
@@ -50,7 +50,7 @@ export default async function SearchPage({ searchParams }: Props) {
         categories={[]}
         brands={[]}
         currentQuery={query}
-        currentBrand={filters.brand}
+        currentBrands={filters.brands}
         onlyAvailable={filters.onlyAvailable}
         withPhoto={filters.withPhoto}
         minPrice={filters.minPrice}
@@ -73,7 +73,7 @@ export default async function SearchPage({ searchParams }: Props) {
       categories={data.categories}
       brands={data.brands}
       currentQuery={query}
-      currentBrand={filters.brand}
+      currentBrands={filters.brands}
       onlyAvailable={filters.onlyAvailable}
       withPhoto={filters.withPhoto}
       minPrice={filters.minPrice}

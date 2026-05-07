@@ -6,7 +6,7 @@ describe("countActiveCatalogFilters", () => {
     expect(
       countActiveCatalogFilters({
         query: "ssd",
-        brand: "Samsung",
+        brands: ["Samsung", "LG"],
         onlyAvailable: true,
         withPhoto: true,
         minPrice: 1000,
@@ -14,7 +14,7 @@ describe("countActiveCatalogFilters", () => {
         sort: "price_asc",
         specFilters: ["storage_ssd", "tv_4k"],
       }),
-    ).toBe(8);
+    ).toBe(9);
   });
 
   it("does not count the default sort or empty values", () => {

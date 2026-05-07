@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { unstable_cache } from "next/cache";
 import { buildCategoryTree, collectDescendantCategoryIds, type CategoryTreeItem, type FlatCategory } from "@/lib/catalog-tree";
-import type { CatalogSort } from "@/lib/catalog-query";
+import { normalizeCatalogBrandValues, type CatalogSort } from "@/lib/catalog-query";
 import {
   buildCatalogSpecFilterWhere,
   getCatalogSpecFilterOptions,
@@ -17,6 +17,7 @@ export type CatalogQuery = {
   categorySlug?: string;
   query?: string;
   brand?: string;
+  brands?: string[];
   available?: boolean;
   withPhoto?: boolean;
   minPrice?: number;
@@ -218,6 +219,7 @@ function toProductWhereArray(value: Prisma.ProductWhereInput["AND"]): Prisma.Pro
 
 export async function getCatalogPage(query: CatalogQuery) {
   const page = Math.max(query.page ?? 1, 1);
+  const selectedBrands = normalizeCatalogBrandValues([...(query.brands ?? []), query.brand]);
   const allCategories = await getActiveCategories();
   const excludedCategoryIds = getExcludedCategoryIds(allCategories);
   const excludedCategoryIdSet = new Set(excludedCategoryIds);
@@ -283,8 +285,12 @@ export async function getCatalogPage(query: CatalogQuery) {
     },
   };
 
-  if (query.brand) {
-    filteredWhere.vendor = query.brand;
+  if (selectedBrands.length === 1) {
+    filteredWhere.vendor = selectedBrands[0];
+  } else if (selectedBrands.length > 1) {
+    filteredWhere.vendor = {
+      in: selectedBrands,
+    };
   }
 
   const [products, total, categories, brands] = await Promise.all([

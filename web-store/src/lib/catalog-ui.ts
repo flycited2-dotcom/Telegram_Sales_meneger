@@ -4,6 +4,7 @@ import type { CatalogSpecFilterValue } from "@/lib/catalog-spec-filters";
 export type CatalogUiFilterState = {
   query?: string;
   brand?: string;
+  brands?: string[];
   onlyAvailable?: boolean;
   withPhoto?: boolean;
   minPrice?: number;
@@ -14,9 +15,10 @@ export type CatalogUiFilterState = {
 
 export function countActiveCatalogFilters(state: CatalogUiFilterState): number {
   let count = 0;
+  const brandCount = state.brands?.length ?? (state.brand ? 1 : 0);
 
   if (state.query) count += 1;
-  if (state.brand) count += 1;
+  count += brandCount;
   if (state.onlyAvailable) count += 1;
   if (state.withPhoto) count += 1;
   if (state.minPrice || state.maxPrice) count += 1;

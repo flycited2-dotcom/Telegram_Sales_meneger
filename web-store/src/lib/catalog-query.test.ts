@@ -16,7 +16,7 @@ describe("parseCatalogSearchParams", () => {
     expect(
       parseCatalogSearchParams({
         q: " холодильник ",
-        brand: ["ATLANT", "ignored"],
+        brand: ["ATLANT", "Indesit", "ATLANT", " "],
         available: "1",
         photo: "1",
         minPrice: "10000",
@@ -28,6 +28,7 @@ describe("parseCatalogSearchParams", () => {
     ).toEqual({
       query: "холодильник",
       brand: "ATLANT",
+      brands: ["ATLANT", "Indesit"],
       onlyAvailable: true,
       withPhoto: true,
       minPrice: 10000,
@@ -42,6 +43,7 @@ describe("parseCatalogSearchParams", () => {
     expect(parseCatalogSearchParams({ q: " ", page: "-4", minPrice: "bad", sort: "unknown" })).toEqual({
       query: undefined,
       brand: undefined,
+      brands: [],
       onlyAvailable: false,
       withPhoto: false,
       minPrice: undefined,

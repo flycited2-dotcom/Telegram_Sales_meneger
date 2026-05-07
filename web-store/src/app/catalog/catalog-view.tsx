@@ -17,7 +17,7 @@ const catalogSortLabels: Record<CatalogSort, string> = {
 
 type CatalogUrlState = {
   query?: string;
-  brand?: string;
+  brands?: string[];
   onlyAvailable?: boolean;
   withPhoto?: boolean;
   minPrice?: number;
@@ -30,7 +30,7 @@ type CatalogUrlState = {
 function catalogHref(basePath: string, state: CatalogUrlState): string {
   const params = new URLSearchParams();
   if (state.query) params.set("q", state.query);
-  if (state.brand) params.set("brand", state.brand);
+  state.brands?.forEach((brand) => params.append("brand", brand));
   if (state.onlyAvailable) params.set("available", "1");
   if (state.withPhoto) params.set("photo", "1");
   if (state.minPrice) params.set("minPrice", String(state.minPrice));
@@ -147,7 +147,7 @@ function CategoriesPanel({
 function FiltersPanel({
   basePath,
   brands,
-  currentBrand,
+  currentBrands = [],
   currentQuery,
   onlyAvailable,
   withPhoto,
@@ -160,7 +160,7 @@ function FiltersPanel({
 }: {
   basePath: string;
   brands: string[];
-  currentBrand?: string;
+  currentBrands?: string[];
   currentQuery?: string;
   onlyAvailable?: boolean;
   withPhoto?: boolean;
@@ -172,7 +172,7 @@ function FiltersPanel({
   framed?: boolean;
 }) {
   const hasFilters = Boolean(
-    currentBrand || currentQuery || onlyAvailable || withPhoto || minPrice || maxPrice || sort !== "popular" || currentSpecFilters.length,
+    currentBrands.length || currentQuery || onlyAvailable || withPhoto || minPrice || maxPrice || sort !== "popular" || currentSpecFilters.length,
   );
   const specFilterGroups = specFilterOptions.reduce<Array<{ label: string; options: CatalogSpecFilterOption[] }>>((groups, option) => {
     const group = groups.find((item) => item.label === option.groupLabel);
@@ -196,17 +196,25 @@ function FiltersPanel({
       </div>
       {currentQuery ? <input type="hidden" name="q" value={currentQuery} /> : null}
       {sort !== "popular" ? <input type="hidden" name="sort" value={sort} /> : null}
-      <label className="mt-4 block text-sm font-medium text-zinc-700">
-        Бренд
-        <select name="brand" defaultValue={currentBrand ?? ""} className="mt-2 h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm">
-          <option value="">Любой</option>
-          {brands.map((brand) => (
-            <option key={brand} value={brand}>
-              {brand}
-            </option>
-          ))}
-        </select>
-      </label>
+      {brands.length ? (
+        <fieldset className="mt-4">
+          <legend className="text-sm font-semibold text-zinc-700">Бренды</legend>
+          <div className="mt-2 grid max-h-52 gap-2 overflow-auto rounded-lg border border-zinc-200 bg-white p-3">
+            {brands.map((brand) => (
+              <label key={brand} className="flex items-center gap-2 text-sm text-zinc-700">
+                <input
+                  name="brand"
+                  value={brand}
+                  type="checkbox"
+                  defaultChecked={currentBrands.includes(brand)}
+                  className="size-4 accent-teal-700"
+                />
+                <span className="min-w-0 flex-1 truncate">{brand}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      ) : null}
       <div className="mt-4 grid grid-cols-2 gap-3">
         <label className="block text-sm font-medium text-zinc-700">
           Цена от
@@ -383,7 +391,7 @@ function CatalogControls({
       <form action={basePath} className="flex w-full min-w-0 items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 sm:w-auto sm:min-w-[260px]">
         <ArrowUpDown className="size-4 shrink-0 text-zinc-500" aria-hidden />
         {state.query ? <input type="hidden" name="q" value={state.query} /> : null}
-        {state.brand ? <input type="hidden" name="brand" value={state.brand} /> : null}
+        {state.brands?.map((brand) => <input key={brand} type="hidden" name="brand" value={brand} />)}
         {state.onlyAvailable ? <input type="hidden" name="available" value="1" /> : null}
         {state.withPhoto ? <input type="hidden" name="photo" value="1" /> : null}
         {state.minPrice ? <input type="hidden" name="minPrice" value={state.minPrice} /> : null}
@@ -422,12 +430,14 @@ function ActiveFilterChips({
           href: catalogHref(basePath, { ...state, query: undefined, page: 1 }),
         }
       : null,
-    state.brand
-      ? {
-          label: `Бренд: ${state.brand}`,
-          href: catalogHref(basePath, { ...state, brand: undefined, page: 1 }),
-        }
-      : null,
+    ...(state.brands ?? []).map((brand) => ({
+      label: `Бренд: ${brand}`,
+      href: catalogHref(basePath, {
+        ...state,
+        brands: state.brands?.filter((current) => current !== brand),
+        page: 1,
+      }),
+    })),
     state.onlyAvailable
       ? {
           label: "Доступно к заказу",
@@ -499,7 +509,7 @@ export function CatalogView({
   brands,
   currentCategorySlug,
   currentQuery,
-  currentBrand,
+  currentBrands = [],
   onlyAvailable,
   withPhoto,
   minPrice,
@@ -519,7 +529,7 @@ export function CatalogView({
   brands: string[];
   currentCategorySlug?: string;
   currentQuery?: string;
-  currentBrand?: string;
+  currentBrands?: string[];
   onlyAvailable?: boolean;
   withPhoto?: boolean;
   minPrice?: number;
@@ -533,7 +543,7 @@ export function CatalogView({
   const totalPages = Math.max(Math.ceil(total / perPage), 1);
   const state = {
     query: currentQuery,
-    brand: currentBrand,
+    brands: currentBrands,
     onlyAvailable,
     withPhoto,
     minPrice,
@@ -543,7 +553,7 @@ export function CatalogView({
   };
   const activeFilterCount = countActiveCatalogFilters({
     query: currentQuery,
-    brand: currentBrand,
+    brands: currentBrands,
     onlyAvailable,
     withPhoto,
     minPrice,
@@ -590,7 +600,7 @@ export function CatalogView({
               <FiltersPanel
                 basePath={basePath}
                 brands={brands}
-                currentBrand={currentBrand}
+                currentBrands={currentBrands}
                 currentQuery={currentQuery}
                 onlyAvailable={onlyAvailable}
                 withPhoto={withPhoto}
@@ -649,7 +659,7 @@ export function CatalogView({
         <FiltersPanel
           basePath={basePath}
           brands={brands}
-          currentBrand={currentBrand}
+          currentBrands={currentBrands}
           currentQuery={currentQuery}
           onlyAvailable={onlyAvailable}
           withPhoto={withPhoto}
