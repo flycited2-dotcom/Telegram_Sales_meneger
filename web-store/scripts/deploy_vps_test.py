@@ -81,10 +81,12 @@ class DeployVpsTests(unittest.TestCase):
         )
 
         build_index = script.index("npm run build")
+        generate_index = script.index("npx prisma generate")
         manifest_index = script.index(".next/prerender-manifest.json")
         restart_index = script.index("pm2 delete climat-simf-store")
         health_index = script.index("curl -fsS -m 30 http://127.0.0.1:3001/")
 
+        self.assertLess(generate_index, build_index)
         self.assertLess(build_index, manifest_index)
         self.assertLess(manifest_index, restart_index)
         self.assertLess(restart_index, health_index)

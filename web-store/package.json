@@ -16,7 +16,8 @@
     "sync:categories": "tsx scripts/sync-categories.ts",
     "sync:products": "tsx scripts/sync-products.ts",
     "sync:prices": "tsx scripts/sync-prices.ts",
-    "sync:images": "tsx scripts/sync-images.ts"
+    "sync:images": "tsx scripts/sync-images.ts",
+    "sync:attributes": "tsx scripts/sync-product-attributes.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

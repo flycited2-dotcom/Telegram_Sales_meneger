@@ -73,6 +73,7 @@ model Product {
   specifications     Json?
   sourceUpdatedAt    DateTime?
   images             ProductImage[]
+  attributes         ProductAttribute[]
   orderItems         OrderItem[]
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
@@ -83,6 +84,27 @@ model Product {
   @@index([slug])
   @@index([sku])
   @@index([isAvailable, retailPrice])
+}
+
+model ProductAttribute {
+  id              String   @id @default(cuid())
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  key             String
+  label           String
+  value           String
+  normalizedValue String
+  numericValue    Float?
+  unit            String?
+  source          String   @default("name")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([productId, key, normalizedValue, source])
+  @@index([productId])
+  @@index([key, normalizedValue])
+  @@index([key, numericValue])
+  @@index([source, updatedAt])
 }
 
 model ProductImage {
