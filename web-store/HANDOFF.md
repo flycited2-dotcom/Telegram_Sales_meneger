@@ -115,6 +115,8 @@
 - Backup source перед попыткой выкладки расширенных фасетных фильтров через deploy helper: `/var/www/climat-simf.ru.source-backup-20260507114907.tar.gz`
 - Мультибрендовые фильтры, dynamic home/sitemap и усиленный deploy helper выложены на VPS через `npm run deploy:vps`: `Deploy completed`, `.next/BUILD_ID=BCbJMktk5jh580thUXEdR`, manifest present, PM2 `online`, локальный healthcheck ok. Smoke: `/` - `200`, `/catalog?brand=ATLANT&brand=Indesit` - `200` и содержит `Бренды` / `Бренд:` / `Smart TV`, `/catalog?spec=tv_smart` - `200` и содержит `Smart TV`, `/robots.txt` - `200`, `/sitemap.xml` - `200`.
 - Backup source перед контрольной выкладкой multi-brand/deploy helper: `/var/www/climat-simf.ru.source-backup-20260507131125.tar.gz`
+- `ProductAttribute` выложен на VPS: `npm run deploy:vps` - `Deploy completed`, затем `npx prisma db push` - schema in sync, `npm run sync:attributes` - `scanned=298688 written=23056`. Распределение атрибутов: `screen_diagonal=9087`, `smart_tv=5572`, `storage_capacity=3231`, `storage_type=3231`, `resolution=1438`, `tank_volume=282`, `ram=166`, `daily_capacity=49`.
+- `spec`-фильтры по доступным атрибутам выложены на VPS: `/catalog?spec=tv_smart` - `200`, `/catalog?spec=storage_ssd` - `200`, `/catalog?spec=daily_capacity` - `200`; `.next/BUILD_ID=cplbUwd4FeuKv-ooSsNnQ`, PM2 `online`. Backup source перед выкладкой: `/var/www/climat-simf.ru.source-backup-20260507192503.tar.gz`
 - PM2 `climat-simf-store` - online
 
 Предыдущие проверки:
