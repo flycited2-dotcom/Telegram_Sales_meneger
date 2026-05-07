@@ -9,6 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:deploy": "python -m unittest scripts.deploy_vps_test",
+    "deploy:vps": "python scripts/deploy_vps.py",
     "prisma:generate": "prisma generate",
     "db:push": "prisma db push",
     "sync:categories": "tsx scripts/sync-categories.ts",
