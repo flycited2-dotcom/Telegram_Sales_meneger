@@ -174,6 +174,15 @@ function FiltersPanel({
   const hasFilters = Boolean(
     currentBrand || currentQuery || onlyAvailable || withPhoto || minPrice || maxPrice || sort !== "popular" || currentSpecFilters.length,
   );
+  const specFilterGroups = specFilterOptions.reduce<Array<{ label: string; options: CatalogSpecFilterOption[] }>>((groups, option) => {
+    const group = groups.find((item) => item.label === option.groupLabel);
+    if (group) {
+      group.options.push(option);
+    } else {
+      groups.push({ label: option.groupLabel, options: [option] });
+    }
+    return groups;
+  }, []);
 
   return (
     <form action={basePath} className={framed ? "rounded-lg border border-zinc-200 bg-white p-4" : ""}>
@@ -222,7 +231,7 @@ function FiltersPanel({
       </div>
       <label className="mt-4 flex items-center gap-2 text-sm text-zinc-700">
         <input name="available" value="1" type="checkbox" defaultChecked={onlyAvailable} className="size-4 accent-teal-700" />
-        Только в наличии
+        Доступно к заказу
       </label>
       <label className="mt-3 flex items-center gap-2 text-sm text-zinc-700">
         <input name="photo" value="1" type="checkbox" defaultChecked={withPhoto} className="size-4 accent-teal-700" />
@@ -231,18 +240,25 @@ function FiltersPanel({
       {specFilterOptions.length ? (
         <fieldset className="mt-4 border-t border-zinc-100 pt-4">
           <legend className="text-sm font-semibold text-zinc-700">Характеристики</legend>
-          <div className="mt-3 grid gap-2">
-            {specFilterOptions.map((option) => (
-              <label key={option.key} className="flex items-center gap-2 text-sm text-zinc-700">
-                <input
-                  name="spec"
-                  value={option.key}
-                  type="checkbox"
-                  defaultChecked={currentSpecFilters.includes(option.key)}
-                  className="size-4 accent-teal-700"
-                />
-                {option.label}
-              </label>
+          <div className="mt-3 grid gap-4">
+            {specFilterGroups.map((group) => (
+              <div key={group.label}>
+                <p className="text-xs font-bold uppercase tracking-wide text-zinc-400">{group.label}</p>
+                <div className="mt-2 grid gap-2">
+                  {group.options.map((option) => (
+                    <label key={option.key} className="flex items-center gap-2 text-sm text-zinc-700">
+                      <input
+                        name="spec"
+                        value={option.key}
+                        type="checkbox"
+                        defaultChecked={currentSpecFilters.includes(option.key)}
+                        className="size-4 accent-teal-700"
+                      />
+                      {option.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </fieldset>
@@ -341,7 +357,7 @@ function CatalogControls({
           ].join(" ")}
         >
           <ShieldCheck className="size-4" aria-hidden />
-          В наличии
+          К заказу
         </Link>
         <Link
           href={catalogHref(basePath, { ...state, withPhoto: true, page: 1 })}
@@ -414,7 +430,7 @@ function ActiveFilterChips({
       : null,
     state.onlyAvailable
       ? {
-          label: "В наличии",
+          label: "Доступно к заказу",
           href: catalogHref(basePath, { ...state, onlyAvailable: false, page: 1 }),
         }
       : null,
