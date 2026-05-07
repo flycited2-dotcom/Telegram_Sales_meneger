@@ -4,6 +4,7 @@ from scripts.deploy_vps import (
     build_connect_kwargs,
     build_remote_deploy_script,
     printable_tail,
+    public_healthcheck,
     run_remote_command,
     should_include_archive_path,
 )
@@ -33,6 +34,17 @@ class _FakeClient:
     def exec_command(self, command, **kwargs):
         self.exec_command_kwargs = kwargs
         return None, _FakeStream(b"ok"), _FakeStream(b"")
+
+
+class _FakeResponse:
+    def __init__(self, status: int):
+        self.status = status
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, traceback):
+        return False
 
 
 class DeployVpsTests(unittest.TestCase):
@@ -104,6 +116,26 @@ class DeployVpsTests(unittest.TestCase):
 
     def test_printable_tail_replaces_characters_missing_from_console_encoding(self):
         self.assertEqual(printable_tail("ok ✓", encoding="cp1251"), "ok ?")
+
+    def test_public_healthcheck_retries_transient_timeouts(self):
+        calls = []
+
+        def opener(url, timeout):
+            calls.append((url, timeout))
+            if len(calls) == 1:
+                raise TimeoutError("cold start")
+            return _FakeResponse(200)
+
+        public_healthcheck(
+            "https://climat-simf.ru",
+            checks=["https://climat-simf.ru/"],
+            attempts=2,
+            timeout=90,
+            delay=0,
+            opener=opener,
+        )
+
+        self.assertEqual(len(calls), 2)
 
 
 if __name__ == "__main__":

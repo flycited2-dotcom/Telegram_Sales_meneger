@@ -117,12 +117,29 @@ def load_dotenv_if_available(project_root: Path) -> None:
         os.environ[key] = value.strip().strip("\"'")
 
 
-def public_healthcheck(url: str) -> None:
-    checks = [url.rstrip("/") + "/", url.rstrip("/") + "/catalog?available=1&photo=1", url.rstrip("/") + "/robots.txt"]
+def public_healthcheck(
+    url: str,
+    *,
+    checks: list[str] | None = None,
+    attempts: int = 3,
+    timeout: int = 90,
+    delay: float = 5.0,
+    opener=urllib.request.urlopen,
+) -> None:
+    checks = checks or [url.rstrip("/") + "/", url.rstrip("/") + "/catalog?available=1&photo=1", url.rstrip("/") + "/robots.txt"]
     for check_url in checks:
-        with urllib.request.urlopen(check_url, timeout=45) as response:
-            if response.status != 200:
-                raise RuntimeError(f"{check_url} returned HTTP {response.status}")
+        last_error: BaseException | None = None
+        for attempt in range(1, attempts + 1):
+            try:
+                with opener(check_url, timeout=timeout) as response:
+                    if response.status != 200:
+                        raise RuntimeError(f"{check_url} returned HTTP {response.status}")
+                break
+            except BaseException as exc:
+                last_error = exc
+                if attempt == attempts:
+                    raise RuntimeError(f"{check_url} failed public healthcheck after {attempts} attempts") from last_error
+                time.sleep(delay)
 
 
 def build_connect_kwargs(*, host: str, user: str, key_path: str | None, password: str | None) -> dict[str, object]:
