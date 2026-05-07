@@ -21,6 +21,12 @@ export const catalogSpecFilterValues = [
   "storage_512_plus",
   "computer_ram",
   "ram_16_plus",
+  "garden_snow_blower",
+  "garden_lawn_mower",
+  "garden_motoblock",
+  "garden_trimmer",
+  "garden_petrol",
+  "garden_battery",
   "laptop",
   "gaming",
   "washer_narrow",
@@ -338,6 +344,48 @@ const specFilterDefinitions: CatalogSpecFilterDefinition[] = [
     ],
   },
   {
+    key: "garden_snow_blower",
+    label: "Снегоуборщики",
+    groupLabel: "Садовая техника",
+    categoryHints: ["дача", "сад", "огород", "садовая", "снегоубор"],
+    searchTerms: ["снегоубор", "snow"],
+  },
+  {
+    key: "garden_lawn_mower",
+    label: "Газонокосилки",
+    groupLabel: "Садовая техника",
+    categoryHints: ["дача", "сад", "огород", "садовая", "газонокос"],
+    searchTerms: ["газонокос", "lawn"],
+  },
+  {
+    key: "garden_motoblock",
+    label: "Мотоблоки",
+    groupLabel: "Садовая техника",
+    categoryHints: ["дача", "сад", "огород", "садовая", "мотоблок"],
+    searchTerms: ["мотоблок"],
+  },
+  {
+    key: "garden_trimmer",
+    label: "Триммеры",
+    groupLabel: "Садовая техника",
+    categoryHints: ["дача", "сад", "огород", "садовая", "триммер"],
+    searchTerms: ["триммер", "коса"],
+  },
+  {
+    key: "garden_petrol",
+    label: "Бензиновые",
+    groupLabel: "Садовая техника",
+    categoryHints: ["дача", "сад", "огород", "садовая", "бензин"],
+    searchTerms: ["бензин"],
+  },
+  {
+    key: "garden_battery",
+    label: "Аккумуляторные",
+    groupLabel: "Садовая техника",
+    categoryHints: ["дача", "сад", "огород", "садовая", "аккумулятор"],
+    searchTerms: ["аккумулятор", "акб"],
+  },
+  {
     key: "laptop",
     label: "Ноутбуки",
     groupLabel: "Компьютеры",
@@ -414,7 +462,7 @@ export function getCatalogSpecFilterOptions({
   };
 
   const options = specFilterDefinitions.filter((definition) => matchesCategory(definition) || active.has(definition.key));
-  const visibleOptions = options.length
+  const visibleOptions = options.length || normalizedCategory
     ? options
     : defaultSpecFilterValues.flatMap((value) => {
         const definition = specFilterByKey.get(value);

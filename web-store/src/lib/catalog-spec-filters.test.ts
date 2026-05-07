@@ -37,6 +37,21 @@ describe("catalog spec filters", () => {
     ]);
   });
 
+  it("does not show unrelated starter filters for categories without spec matches", () => {
+    expect(getCatalogSpecFilterOptions({ categoryName: "Книги" })).toEqual([]);
+  });
+
+  it("returns garden filters for dacha and garden categories", () => {
+    expect(getCatalogSpecFilterOptions({ categoryName: "Дача, сад и огород" })).toEqual([
+      { key: "garden_snow_blower", label: "Снегоуборщики", groupLabel: "Садовая техника" },
+      { key: "garden_lawn_mower", label: "Газонокосилки", groupLabel: "Садовая техника" },
+      { key: "garden_motoblock", label: "Мотоблоки", groupLabel: "Садовая техника" },
+      { key: "garden_trimmer", label: "Триммеры", groupLabel: "Садовая техника" },
+      { key: "garden_petrol", label: "Бензиновые", groupLabel: "Садовая техника" },
+      { key: "garden_battery", label: "Аккумуляторные", groupLabel: "Садовая техника" },
+    ]);
+  });
+
   it("returns richer appliance filters for refrigerator categories", () => {
     expect(getCatalogSpecFilterOptions({ categoryName: "Холодильники и морозильники" })).toEqual([
       { key: "fridge_no_frost", label: "No Frost", groupLabel: "Холодильники" },
@@ -154,6 +169,27 @@ describe("catalog spec filters", () => {
                 },
               },
             },
+          ]),
+        }),
+      ]),
+    );
+  });
+
+  it("builds search conditions for garden spec filters", () => {
+    const where = buildCatalogSpecFilterWhere(["garden_snow_blower", "garden_battery"]);
+
+    expect(where.AND).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          OR: expect.arrayContaining([
+            { name: { contains: "снегоубор", mode: "insensitive" } },
+            { supplierName: { contains: "снегоубор", mode: "insensitive" } },
+          ]),
+        }),
+        expect.objectContaining({
+          OR: expect.arrayContaining([
+            { name: { contains: "аккумулятор", mode: "insensitive" } },
+            { supplierName: { contains: "аккумулятор", mode: "insensitive" } },
           ]),
         }),
       ]),

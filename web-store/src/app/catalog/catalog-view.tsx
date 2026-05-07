@@ -2,6 +2,7 @@ import type { Product, ProductImage } from "@prisma/client";
 import { ArrowUpDown, ChevronDown, Image as ImageIcon, Phone, Search, ShieldCheck, SlidersHorizontal, Truck, X } from "lucide-react";
 import Link from "next/link";
 import { CatalogGrid } from "@/components/catalog-grid";
+import { SearchableCheckboxList } from "@/components/searchable-checkbox-list";
 import type { CatalogBrandFilterOption } from "@/lib/catalog-brand-filters";
 import type { CategoryTreeItem } from "@/lib/catalog-tree";
 import type { CatalogSort } from "@/lib/catalog-query";
@@ -200,22 +201,13 @@ function FiltersPanel({
       {brands.length ? (
         <fieldset className="mt-4">
           <legend className="text-sm font-semibold text-zinc-700">Бренды</legend>
-          <div className="mt-2 grid max-h-52 gap-2 overflow-auto rounded-lg border border-zinc-200 bg-white p-3">
-            {brands.map((brand) => (
-              <label key={brand.value} className="flex items-center gap-2 text-sm text-zinc-700">
-                <input
-                  name="brand"
-                  value={brand.value}
-                  type="checkbox"
-                  defaultChecked={currentBrands.includes(brand.value)}
-                  className="size-4 accent-teal-700"
-                />
-                <span className="min-w-0 flex-1 truncate">{brand.value}</span>
-                <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500">
-                  {brand.count.toLocaleString("ru-RU")}
-                </span>
-              </label>
-            ))}
+          <div className="mt-2">
+            <SearchableCheckboxList
+              name="brand"
+              options={brands.map((brand) => ({ value: brand.value, label: brand.value, count: brand.count }))}
+              selectedValues={currentBrands}
+              searchPlaceholder="Найти бренд"
+            />
           </div>
         </fieldset>
       ) : null}
@@ -256,24 +248,13 @@ function FiltersPanel({
             {specFilterGroups.map((group) => (
               <div key={group.label}>
                 <p className="text-xs font-bold uppercase tracking-wide text-zinc-400">{group.label}</p>
-                <div className="mt-2 grid gap-2">
-                  {group.options.map((option) => (
-                    <label key={option.key} className="flex items-center gap-2 text-sm text-zinc-700">
-                      <input
-                        name="spec"
-                        value={option.key}
-                        type="checkbox"
-                        defaultChecked={currentSpecFilters.includes(option.key)}
-                        className="size-4 accent-teal-700"
-                      />
-                      <span className="min-w-0 flex-1">{option.label}</span>
-                      {typeof option.count === "number" ? (
-                        <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500">
-                          {option.count.toLocaleString("ru-RU")}
-                        </span>
-                      ) : null}
-                    </label>
-                  ))}
+                <div className="mt-2">
+                  <SearchableCheckboxList
+                    name="spec"
+                    options={group.options.map((option) => ({ value: option.key, label: option.label, count: option.count }))}
+                    selectedValues={currentSpecFilters}
+                    searchPlaceholder="Найти характеристику"
+                  />
                 </div>
               </div>
             ))}
