@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { unstable_cache } from "next/cache";
+import { buildCatalogBrandFilterOptions } from "@/lib/catalog-brand-filters";
 import { buildCategoryTree, collectDescendantCategoryIds, type CategoryTreeItem, type FlatCategory } from "@/lib/catalog-tree";
 import { normalizeCatalogBrandValues, type CatalogSort } from "@/lib/catalog-query";
 import {
@@ -177,11 +178,11 @@ export const getHomeSnapshot = unstable_cache(async () => {
 }, ["home-snapshot"], { revalidate: STOREFRONT_CACHE_SECONDS, tags: ["catalog", "products"] });
 
 const getCatalogBrands = unstable_cache(async (where: Prisma.ProductWhereInput) => {
-  return prisma.product.findMany({
+  return prisma.product.groupBy({
+    by: ["vendor"],
     where,
-    distinct: ["vendor"],
-    select: {
-      vendor: true,
+    _count: {
+      _all: true,
     },
     orderBy: {
       vendor: "asc",
@@ -355,7 +356,10 @@ export async function getCatalogPage(query: CatalogQuery) {
     page,
     perPage: PRODUCTS_PER_PAGE,
     categories,
-    brands: brands.map((row) => row.vendor).filter(Boolean) as string[],
+    brands: buildCatalogBrandFilterOptions(
+      brands.map((row) => ({ vendor: row.vendor, count: row._count._all })),
+      selectedBrands,
+    ),
     specFilterOptions: attachCatalogSpecFilterCounts(specFilterOptions, specFilterCounts),
   };
 }

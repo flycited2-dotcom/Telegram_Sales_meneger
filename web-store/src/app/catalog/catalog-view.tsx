@@ -2,6 +2,7 @@ import type { Product, ProductImage } from "@prisma/client";
 import { ArrowUpDown, ChevronDown, Image as ImageIcon, Phone, Search, ShieldCheck, SlidersHorizontal, Truck, X } from "lucide-react";
 import Link from "next/link";
 import { CatalogGrid } from "@/components/catalog-grid";
+import type { CatalogBrandFilterOption } from "@/lib/catalog-brand-filters";
 import type { CategoryTreeItem } from "@/lib/catalog-tree";
 import type { CatalogSort } from "@/lib/catalog-query";
 import { getCatalogSpecFilterLabel, type CatalogSpecFilterOption, type CatalogSpecFilterValue } from "@/lib/catalog-spec-filters";
@@ -159,7 +160,7 @@ function FiltersPanel({
   framed = true,
 }: {
   basePath: string;
-  brands: string[];
+  brands: CatalogBrandFilterOption[];
   currentBrands?: string[];
   currentQuery?: string;
   onlyAvailable?: boolean;
@@ -201,15 +202,18 @@ function FiltersPanel({
           <legend className="text-sm font-semibold text-zinc-700">Бренды</legend>
           <div className="mt-2 grid max-h-52 gap-2 overflow-auto rounded-lg border border-zinc-200 bg-white p-3">
             {brands.map((brand) => (
-              <label key={brand} className="flex items-center gap-2 text-sm text-zinc-700">
+              <label key={brand.value} className="flex items-center gap-2 text-sm text-zinc-700">
                 <input
                   name="brand"
-                  value={brand}
+                  value={brand.value}
                   type="checkbox"
-                  defaultChecked={currentBrands.includes(brand)}
+                  defaultChecked={currentBrands.includes(brand.value)}
                   className="size-4 accent-teal-700"
                 />
-                <span className="min-w-0 flex-1 truncate">{brand}</span>
+                <span className="min-w-0 flex-1 truncate">{brand.value}</span>
+                <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500">
+                  {brand.count.toLocaleString("ru-RU")}
+                </span>
               </label>
             ))}
           </div>
@@ -531,7 +535,7 @@ export function CatalogView({
   page: number;
   perPage: number;
   categories: CategoryTreeItem[];
-  brands: string[];
+  brands: CatalogBrandFilterOption[];
   currentCategorySlug?: string;
   currentQuery?: string;
   currentBrands?: string[];
