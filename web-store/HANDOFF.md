@@ -112,6 +112,8 @@
 - Backup изменяемых файлов перед выкладкой mobile catalog flow: `/var/www/climat-simf.ru.file-backup-mobile-catalog-20260507023146`
 - Расширенные фасетные фильтры выложены на VPS после восстановления неполной `.next`: `npm run build` - passed, `.next/BUILD_ID` и `.next/prerender-manifest.json` присутствуют, PM2 `climat-simf-store` - online, локальный healthcheck `127.0.0.1:3001` - ok. Smoke: `/` - `200`, `/catalog?spec=tv_smart` - `200` и содержит `Smart TV` / `Доступно к заказу`, `/catalog?spec=fridge_no_frost` - `200` и содержит `No Frost` / `Доступно к заказу`, `/robots.txt` - `200`.
 - Backup source перед попыткой выкладки расширенных фасетных фильтров через deploy helper: `/var/www/climat-simf.ru.source-backup-20260507114907.tar.gz`
+- Мультибрендовые фильтры, dynamic home/sitemap и усиленный deploy helper выложены на VPS через `npm run deploy:vps`: `Deploy completed`, `.next/BUILD_ID=BCbJMktk5jh580thUXEdR`, manifest present, PM2 `online`, локальный healthcheck ok. Smoke: `/` - `200`, `/catalog?brand=ATLANT&brand=Indesit` - `200` и содержит `Бренды` / `Бренд:` / `Smart TV`, `/catalog?spec=tv_smart` - `200` и содержит `Smart TV`, `/robots.txt` - `200`, `/sitemap.xml` - `200`.
+- Backup source перед контрольной выкладкой multi-brand/deploy helper: `/var/www/climat-simf.ru.source-backup-20260507131125.tar.gz`
 - PM2 `climat-simf-store` - online
 
 Предыдущие проверки:
