@@ -14,8 +14,9 @@ describe("countActiveCatalogFilters", () => {
         sort: "price_asc",
         specFilters: ["storage_ssd", "tv_4k"],
         attributeFilters: [{ key: "storage_type", normalizedValue: "ssd" }],
+        attributeRangeFilters: [{ key: "ram", min: 16, max: 64 }],
       }),
-    ).toBe(10);
+    ).toBe(11);
   });
 
   it("does not count the default sort or empty values", () => {

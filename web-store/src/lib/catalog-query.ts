@@ -1,4 +1,9 @@
-import { normalizeCatalogAttributeFilters, type CatalogAttributeFilter } from "@/lib/catalog-attribute-filters";
+import {
+  normalizeCatalogAttributeFilters,
+  normalizeCatalogAttributeRangeFilters,
+  type CatalogAttributeFilter,
+  type CatalogAttributeRangeFilter,
+} from "@/lib/catalog-attribute-filters";
 import { normalizeCatalogSpecFilterValues, type CatalogSpecFilterValue } from "@/lib/catalog-spec-filters";
 
 export type CatalogSearchParams = Record<string, string | string[] | undefined>;
@@ -19,6 +24,7 @@ export type ParsedCatalogSearchParams = {
   sort: CatalogSort;
   specFilters: CatalogSpecFilterValue[];
   attributeFilters: CatalogAttributeFilter[];
+  attributeRangeFilters: CatalogAttributeRangeFilter[];
 };
 
 export function firstParam(value: string | string[] | undefined): string | undefined {
@@ -77,5 +83,9 @@ export function parseCatalogSearchParams(params: CatalogSearchParams): ParsedCat
     sort: parseCatalogSort(params.sort),
     specFilters: normalizeCatalogSpecFilterValues(allParams(params.spec)),
     attributeFilters: normalizeCatalogAttributeFilters(allParams(params.attr)),
+    attributeRangeFilters: normalizeCatalogAttributeRangeFilters({
+      minValues: allParams(params.attrMin),
+      maxValues: allParams(params.attrMax),
+    }),
   };
 }

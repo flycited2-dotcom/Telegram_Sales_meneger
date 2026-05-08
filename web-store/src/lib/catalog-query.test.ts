@@ -25,6 +25,8 @@ describe("parseCatalogSearchParams", () => {
         sort: "price_asc",
         spec: ["tv_4k", "unknown", "storage_ssd"],
         attr: ["storage_type:ssd", "ram:16", "bad"],
+        attrMin: ["ram:16", "storage_capacity:512"],
+        attrMax: ["ram:64"],
       }),
     ).toEqual({
       query: "холодильник",
@@ -40,6 +42,10 @@ describe("parseCatalogSearchParams", () => {
       attributeFilters: [
         { key: "storage_type", normalizedValue: "ssd" },
         { key: "ram", normalizedValue: "16" },
+      ],
+      attributeRangeFilters: [
+        { key: "ram", min: 16, max: 64 },
+        { key: "storage_capacity", min: 512 },
       ],
     });
   });
@@ -57,6 +63,7 @@ describe("parseCatalogSearchParams", () => {
       sort: "popular",
       specFilters: [],
       attributeFilters: [],
+      attributeRangeFilters: [],
     });
   });
 });

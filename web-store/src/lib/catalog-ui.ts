@@ -1,5 +1,5 @@
 import type { CatalogSort } from "@/lib/catalog-query";
-import type { CatalogAttributeFilter } from "@/lib/catalog-attribute-filters";
+import type { CatalogAttributeFilter, CatalogAttributeRangeFilter } from "@/lib/catalog-attribute-filters";
 import type { CatalogSpecFilterValue } from "@/lib/catalog-spec-filters";
 
 export type CatalogUiFilterState = {
@@ -13,6 +13,7 @@ export type CatalogUiFilterState = {
   sort: CatalogSort;
   specFilters: CatalogSpecFilterValue[];
   attributeFilters?: CatalogAttributeFilter[];
+  attributeRangeFilters?: CatalogAttributeRangeFilter[];
 };
 
 export function countActiveCatalogFilters(state: CatalogUiFilterState): number {
@@ -26,5 +27,5 @@ export function countActiveCatalogFilters(state: CatalogUiFilterState): number {
   if (state.minPrice || state.maxPrice) count += 1;
   if (state.sort !== "popular") count += 1;
 
-  return count + state.specFilters.length + (state.attributeFilters?.length ?? 0);
+  return count + state.specFilters.length + (state.attributeFilters?.length ?? 0) + (state.attributeRangeFilters?.length ?? 0);
 }

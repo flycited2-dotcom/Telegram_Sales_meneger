@@ -1,9 +1,15 @@
 import type { Prisma } from "@prisma/client";
-import { catalogAttributeFacetKeys } from "@/lib/catalog-attribute-registry";
+import { catalogAttributeFacetKeys, catalogRangeAttributeKeys } from "@/lib/catalog-attribute-registry";
 
 export type CatalogAttributeFilter = {
   key: string;
   normalizedValue: string;
+};
+
+export type CatalogAttributeRangeFilter = {
+  key: string;
+  min?: number;
+  max?: number;
 };
 
 export type CatalogAttributeFilterGroup = {
@@ -65,6 +71,62 @@ export function buildCatalogAttributeFilterWhere(filters: CatalogAttributeFilter
         some: {
           key: filter.key,
           normalizedValue: filter.normalizedValue,
+        },
+      },
+    })),
+  };
+}
+
+function parseRangeParam(value: string | null | undefined): { key: string; value: number } | null {
+  const raw = value?.trim();
+  if (!raw || !raw.includes(":")) return null;
+
+  const [key, ...rest] = raw.split(":");
+  const normalizedKey = key.trim();
+  const numberValue = Number(rest.join(":").trim().replace(",", "."));
+  if (!catalogRangeAttributeKeys.includes(normalizedKey) || !Number.isFinite(numberValue) || numberValue < 0) {
+    return null;
+  }
+
+  return { key: normalizedKey, value: numberValue };
+}
+
+export function normalizeCatalogAttributeRangeFilters({
+  minValues,
+  maxValues,
+}: {
+  minValues: Array<string | null | undefined>;
+  maxValues: Array<string | null | undefined>;
+}): CatalogAttributeRangeFilter[] {
+  const byKey = new Map<string, CatalogAttributeRangeFilter>();
+
+  for (const value of minValues) {
+    const parsed = parseRangeParam(value);
+    if (parsed) byKey.set(parsed.key, { ...byKey.get(parsed.key), key: parsed.key, min: parsed.value });
+  }
+
+  for (const value of maxValues) {
+    const parsed = parseRangeParam(value);
+    if (parsed) byKey.set(parsed.key, { ...byKey.get(parsed.key), key: parsed.key, max: parsed.value });
+  }
+
+  return Array.from(byKey.values())
+    .filter((filter) => filter.min !== undefined || filter.max !== undefined)
+    .slice(0, 16);
+}
+
+export function buildCatalogAttributeRangeFilterWhere(filters: CatalogAttributeRangeFilter[]): Prisma.ProductWhereInput {
+  if (!filters.length) return {};
+
+  return {
+    AND: filters.map((filter) => ({
+      attributes: {
+        some: {
+          key: filter.key,
+          numericValue: {
+            ...(filter.min !== undefined ? { gte: filter.min } : {}),
+            ...(filter.max !== undefined ? { lte: filter.max } : {}),
+          },
         },
       },
     })),

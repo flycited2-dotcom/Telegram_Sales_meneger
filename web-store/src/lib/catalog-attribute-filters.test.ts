@@ -3,7 +3,9 @@ import {
   buildCatalogAttributeFilterGroups,
   buildCatalogAttributeFacetProductWhere,
   buildCatalogAttributeFilterWhere,
+  buildCatalogAttributeRangeFilterWhere,
   normalizeCatalogAttributeFilters,
+  normalizeCatalogAttributeRangeFilters,
 } from "@/lib/catalog-attribute-filters";
 
 describe("catalog attribute filters", () => {
@@ -31,6 +33,37 @@ describe("catalog attribute filters", () => {
             some: {
               key: "ram",
               normalizedValue: "16",
+            },
+          },
+        },
+      ],
+    });
+  });
+
+  it("normalizes numeric min/max URL filters", () => {
+    expect(
+      normalizeCatalogAttributeRangeFilters({
+        minValues: ["ram:16", "bad", "storage_capacity:512"],
+        maxValues: ["ram:64", "screen_diagonal:65", "unknown:1"],
+      }),
+    ).toEqual([
+      { key: "ram", min: 16, max: 64 },
+      { key: "storage_capacity", min: 512 },
+      { key: "screen_diagonal", max: 65 },
+    ]);
+  });
+
+  it("builds Prisma numeric attribute range filters", () => {
+    expect(buildCatalogAttributeRangeFilterWhere([{ key: "ram", min: 16, max: 64 }])).toEqual({
+      AND: [
+        {
+          attributes: {
+            some: {
+              key: "ram",
+              numericValue: {
+                gte: 16,
+                lte: 64,
+              },
             },
           },
         },
