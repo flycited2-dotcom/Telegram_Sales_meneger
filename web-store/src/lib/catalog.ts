@@ -12,9 +12,9 @@ import {
   type CatalogAttributeRangeFilter,
   type CatalogAttributeRangeGroup,
 } from "@/lib/catalog-attribute-filters";
-import { catalogRangeAttributeKeys, getCatalogAttributeDefinition } from "@/lib/catalog-attribute-registry";
+import { catalogRangeAttributeKeys, getCatalogAttributeDefinition, getCatalogAttributeKeysForCategory } from "@/lib/catalog-attribute-registry";
 import { buildCatalogBrandFilterOptions } from "@/lib/catalog-brand-filters";
-import { buildCategoryTree, collectDescendantCategoryIds, type CategoryTreeItem, type FlatCategory } from "@/lib/catalog-tree";
+import { buildCategoryPath, buildCategoryTree, collectDescendantCategoryIds, type CategoryTreeItem, type FlatCategory } from "@/lib/catalog-tree";
 import { normalizeCatalogBrandValues, type CatalogSort } from "@/lib/catalog-query";
 import {
   attachCatalogSpecFilterCounts,
@@ -136,6 +136,13 @@ export const getCategoryBySlug = unstable_cache(async (slug: string): Promise<Fl
     },
   });
 }, ["category-by-slug"], { revalidate: STOREFRONT_CACHE_SECONDS, tags: ["catalog"] });
+
+export async function getCategoryPathById(categoryId: string | null | undefined): Promise<FlatCategory[]> {
+  if (!categoryId) return [];
+
+  const categories = await getActiveCategories();
+  return buildCategoryPath(categories, categoryId);
+}
 
 function getExcludedCategoryIds(categories: FlatCategory[]): string[] {
   return Array.from(
@@ -282,8 +289,10 @@ type CatalogAttributeGroupByRow = {
 async function getCatalogAttributeFilterGroups(
   baseWhere: Prisma.ProductWhereInput,
   activeFilters: CatalogAttributeFilter[] = [],
+  allowedKeys: string[] = catalogAttributeFacetKeys,
 ): Promise<CatalogAttributeFilterGroup[]> {
   const rows: CatalogAttributeGroupByRow[] = [];
+  const allowedFacetKeys = catalogAttributeFacetKeys.filter((key) => allowedKeys.includes(key));
 
   if (!activeFilters.length) {
     rows.push(
@@ -291,7 +300,7 @@ async function getCatalogAttributeFilterGroups(
         by: ["key", "label", "value", "normalizedValue", "numericValue", "unit"],
         where: {
           key: {
-            in: catalogAttributeFacetKeys,
+            in: allowedFacetKeys,
           },
           product: {
             is: baseWhere,
@@ -303,7 +312,7 @@ async function getCatalogAttributeFilterGroups(
       })),
     );
   } else {
-    for (const facetKey of catalogAttributeFacetKeys) {
+    for (const facetKey of allowedFacetKeys) {
       rows.push(
         ...(await prisma.productAttribute.groupBy({
           by: ["key", "label", "value", "normalizedValue", "numericValue", "unit"],
@@ -332,13 +341,14 @@ async function getCatalogAttributeFilterGroups(
       count: row._count._all,
     })),
     activeFilters,
+    allowedKeys,
   );
 }
 
-async function getCatalogAttributeRangeGroups(baseWhere: Prisma.ProductWhereInput): Promise<CatalogAttributeRangeGroup[]> {
+async function getCatalogAttributeRangeGroups(baseWhere: Prisma.ProductWhereInput, allowedKeys: string[] = catalogAttributeFacetKeys): Promise<CatalogAttributeRangeGroup[]> {
   const rows: CatalogAttributeRangeGroup[] = [];
 
-  for (const key of catalogRangeAttributeKeys) {
+  for (const key of catalogRangeAttributeKeys.filter((item) => allowedKeys.includes(item))) {
     const definition = getCatalogAttributeDefinition(key);
     if (!definition) continue;
 
@@ -375,7 +385,7 @@ async function getCatalogAttributeRangeGroups(baseWhere: Prisma.ProductWhereInpu
     }
   }
 
-  return buildCatalogAttributeRangeGroups(rows);
+  return buildCatalogAttributeRangeGroups(rows, allowedKeys);
 }
 
 export async function getCatalogPage(query: CatalogQuery) {
@@ -404,6 +414,14 @@ export async function getCatalogPage(query: CatalogQuery) {
       notIn: excludedCategoryIds,
     };
   }
+
+  const allowedAttributeKeys = getCatalogAttributeKeysForCategory({
+    categoryName: category?.name,
+    categorySlug: category?.slug,
+  });
+  const allowedAttributeKeySet = new Set(allowedAttributeKeys);
+  const activeAttributeFilters = (query.attributeFilters ?? []).filter((filter) => allowedAttributeKeySet.has(filter.key));
+  const activeAttributeRangeFilters = (query.attributeRangeFilters ?? []).filter((filter) => allowedAttributeKeySet.has(filter.key));
 
   const filteredWhere: Prisma.ProductWhereInput = { ...baseWhere };
   if (query.query) {
@@ -440,9 +458,9 @@ export async function getCatalogPage(query: CatalogQuery) {
 
   const specWhere = buildCatalogSpecFilterWhere(query.specFilters ?? []);
   const specAnd = toProductWhereArray(specWhere.AND);
-  const attributeWhere = buildCatalogAttributeFilterWhere(query.attributeFilters ?? []);
+  const attributeWhere = buildCatalogAttributeFilterWhere(activeAttributeFilters);
   const attributeAnd = toProductWhereArray(attributeWhere.AND);
-  const attributeRangeWhere = buildCatalogAttributeRangeFilterWhere(query.attributeRangeFilters ?? []);
+  const attributeRangeWhere = buildCatalogAttributeRangeFilterWhere(activeAttributeRangeFilters);
   const attributeRangeAnd = toProductWhereArray(attributeRangeWhere.AND);
 
   const specCountBaseWhere: Prisma.ProductWhereInput = { ...filteredWhere };
@@ -495,8 +513,8 @@ export async function getCatalogPage(query: CatalogQuery) {
   const categories = await getCatalogCategoryTree(allCategories);
   const brands = await getCatalogBrands(brandWhere);
   const specFilterCounts = await getCatalogSpecFilterCounts(specFilterOptions, specCountBaseWhere);
-  const attributeFilterGroups = await getCatalogAttributeFilterGroups(attributeFacetBaseWhere, query.attributeFilters);
-  const attributeRangeGroups = await getCatalogAttributeRangeGroups(attributeRangeFacetBaseWhere);
+  const attributeFilterGroups = await getCatalogAttributeFilterGroups(attributeFacetBaseWhere, activeAttributeFilters, allowedAttributeKeys);
+  const attributeRangeGroups = await getCatalogAttributeRangeGroups(attributeRangeFacetBaseWhere, allowedAttributeKeys);
 
   return {
     category,
@@ -512,6 +530,8 @@ export async function getCatalogPage(query: CatalogQuery) {
     specFilterOptions: attachCatalogSpecFilterCounts(specFilterOptions, specFilterCounts, query.specFilters),
     attributeFilterGroups,
     attributeRangeGroups,
+    attributeFilters: activeAttributeFilters,
+    attributeRangeFilters: activeAttributeRangeFilters,
   };
 }
 

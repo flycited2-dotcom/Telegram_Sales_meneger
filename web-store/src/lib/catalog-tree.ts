@@ -33,6 +33,23 @@ export function collectDescendantCategoryIds(categories: FlatCategory[], categor
   return ids;
 }
 
+export function buildCategoryPath(categories: FlatCategory[], categoryId: string | null | undefined): FlatCategory[] {
+  if (!categoryId) return [];
+
+  const byId = new Map(categories.map((category) => [category.id, category]));
+  const path: FlatCategory[] = [];
+  const seen = new Set<string>();
+  let current = byId.get(categoryId);
+
+  while (current && !seen.has(current.id)) {
+    path.push(current);
+    seen.add(current.id);
+    current = current.parentId ? byId.get(current.parentId) : undefined;
+  }
+
+  return path.reverse();
+}
+
 export function buildCategoryTree(categories: FlatCategory[], directProductCounts: Map<string, number>): CategoryTreeItem[] {
   const nodes = new Map<string, CategoryTreeItem>();
   const roots: CategoryTreeItem[] = [];

@@ -85,9 +85,9 @@ export default async function SearchPage({ searchParams }: Props) {
       sort={filters.sort}
       currentSpecFilters={filters.specFilters}
       specFilterOptions={data.specFilterOptions}
-      currentAttributeFilters={filters.attributeFilters}
+      currentAttributeFilters={data.attributeFilters}
       attributeFilterGroups={data.attributeFilterGroups}
-      currentAttributeRangeFilters={filters.attributeRangeFilters}
+      currentAttributeRangeFilters={data.attributeRangeFilters}
       attributeRangeGroups={data.attributeRangeGroups}
       basePath="/search"
     />

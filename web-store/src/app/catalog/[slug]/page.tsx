@@ -83,9 +83,9 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       sort={filters.sort}
       currentSpecFilters={filters.specFilters}
       specFilterOptions={data.specFilterOptions}
-      currentAttributeFilters={filters.attributeFilters}
+      currentAttributeFilters={data.attributeFilters}
       attributeFilterGroups={data.attributeFilterGroups}
-      currentAttributeRangeFilters={filters.attributeRangeFilters}
+      currentAttributeRangeFilters={data.attributeRangeFilters}
       attributeRangeGroups={data.attributeRangeGroups}
       basePath={`/catalog/${data.category.slug}`}
     />

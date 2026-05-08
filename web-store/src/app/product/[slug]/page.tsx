@@ -7,7 +7,7 @@ import { ProductCard } from "@/components/product-card";
 import { ProductGallery } from "@/components/product-gallery";
 import { QuickOrderForm } from "@/components/quick-order-form";
 import { StockBadge } from "@/components/stock-badge";
-import { decimalToNumber, getProductBySlug, getRelatedProducts } from "@/lib/catalog";
+import { decimalToNumber, getCategoryPathById, getProductBySlug, getRelatedProducts } from "@/lib/catalog";
 import { publicFulfillmentText } from "@/lib/fulfillment";
 import { formatRub } from "@/lib/format";
 import { buildProductFacts, productDescriptionText } from "@/lib/product-display";
@@ -69,6 +69,7 @@ export default async function ProductPage({ params }: Props) {
   const price = decimalToNumber(product.retailPrice);
   const fulfillment = publicFulfillmentText({ isAvailable: product.isAvailable && Boolean(price) });
   const categoryName = product.category?.name ?? null;
+  const categoryPath = await getCategoryPathById(product.categoryId);
   const galleryImages = product.images.flatMap((image) => {
     const src = productImageSrc(image);
     return src ? [{ id: image.id, src, alt: name }] : [];
@@ -109,7 +110,7 @@ export default async function ProductPage({ params }: Props) {
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
     { name: storefront.brand, url: "/" },
     { name: "Каталог", url: "/catalog" },
-    ...(product.category ? [{ name: product.category.name, url: `/catalog/${product.category.slug}` }] : []),
+    ...categoryPath.map((category) => ({ name: category.name, url: `/catalog/${category.slug}` })),
     { name, url: productPath },
   ]);
   const minimumQuantity = Math.max(product.multiplicity || 1, 1);
@@ -118,10 +119,20 @@ export default async function ProductPage({ params }: Props) {
     <div className="mx-auto max-w-7xl px-4 pb-40 pt-8 sm:px-6 lg:px-8 lg:pb-8">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
-      <Link href="/catalog" className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-600 hover:text-teal-800">
-        <ArrowLeft className="size-4" aria-hidden />
-        Назад в каталог
-      </Link>
+      <nav className="flex flex-wrap items-center gap-2 text-sm text-zinc-500" aria-label="Навигация по каталогу">
+        <Link href="/catalog" className="inline-flex items-center gap-1 font-semibold text-zinc-700 hover:text-teal-800">
+          <ArrowLeft className="size-4" aria-hidden />
+          Каталог
+        </Link>
+        {categoryPath.map((category) => (
+          <span key={category.id} className="inline-flex items-center gap-2">
+            <span className="text-zinc-300">/</span>
+            <Link href={`/catalog/${category.slug}`} className="font-semibold text-zinc-700 hover:text-teal-800">
+              {category.name}
+            </Link>
+          </span>
+        ))}
+      </nav>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(360px,0.75fr)_360px]">
         <ProductGallery images={galleryImages} name={name} />

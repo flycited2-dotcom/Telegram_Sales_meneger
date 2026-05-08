@@ -45,6 +45,10 @@ export { catalogAttributeFacetKeys } from "@/lib/catalog-attribute-registry";
 
 const keyRank = new Map(catalogAttributeFacetKeys.map((key, index) => [key, index]));
 
+function isAllowedAttributeKey(key: string, allowedKeys?: string[]): boolean {
+  return !allowedKeys || allowedKeys.includes(key);
+}
+
 export function catalogAttributeFilterParam(filter: CatalogAttributeFilter): string {
   return `${filter.key}:${filter.normalizedValue}`;
 }
@@ -142,9 +146,9 @@ export function buildCatalogAttributeRangeFilterWhere(filters: CatalogAttributeR
   };
 }
 
-export function buildCatalogAttributeRangeGroups(rows: CatalogAttributeRangeGroup[]): CatalogAttributeRangeGroup[] {
+export function buildCatalogAttributeRangeGroups(rows: CatalogAttributeRangeGroup[], allowedKeys?: string[]): CatalogAttributeRangeGroup[] {
   return rows
-    .filter((row) => keyRank.has(row.key) && row.count > 0 && Number.isFinite(row.min) && Number.isFinite(row.max) && row.min < row.max)
+    .filter((row) => keyRank.has(row.key) && isAllowedAttributeKey(row.key, allowedKeys) && row.count > 0 && Number.isFinite(row.min) && Number.isFinite(row.max) && row.min < row.max)
     .sort((left, right) => (keyRank.get(left.key) ?? 999) - (keyRank.get(right.key) ?? 999));
 }
 
@@ -172,12 +176,13 @@ export function buildCatalogAttributeFacetProductWhere(
 export function buildCatalogAttributeFilterGroups(
   rows: CatalogAttributeFacetRow[],
   activeFilters: CatalogAttributeFilter[] = [],
+  allowedKeys?: string[],
 ): CatalogAttributeFilterGroup[] {
   const active = new Set(activeFilters.map(catalogAttributeFilterParam));
   const groups = new Map<string, CatalogAttributeFilterGroup>();
 
   for (const row of rows) {
-    if (!keyRank.has(row.key)) continue;
+    if (!keyRank.has(row.key) || !isAllowedAttributeKey(row.key, allowedKeys)) continue;
     const optionValue = catalogAttributeFilterParam({ key: row.key, normalizedValue: row.normalizedValue });
     if (row.count <= 0 && !active.has(optionValue)) continue;
 
@@ -207,5 +212,5 @@ export function buildCatalogAttributeFilterGroups(
         })
         .slice(0, 16),
     }))
-    .filter((group) => group.options.length > 1 || activeFilters.some((filter) => filter.key === group.key));
+    .filter((group) => group.options.length > 0);
 }

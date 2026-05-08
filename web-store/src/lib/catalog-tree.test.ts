@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCategoryTree, collectDescendantCategoryIds } from "@/lib/catalog-tree";
+import { buildCategoryPath, buildCategoryTree, collectDescendantCategoryIds } from "@/lib/catalog-tree";
 
 const categories = [
   { id: "root", parentId: null, name: "Компьютерная техника", slug: "computers" },
@@ -42,5 +42,11 @@ describe("buildCategoryTree", () => {
         },
       ],
     });
+  });
+});
+
+describe("buildCategoryPath", () => {
+  it("returns a root-to-leaf category path for breadcrumbs", () => {
+    expect(buildCategoryPath(categories, "gaming").map((category) => category.slug)).toEqual(["computers", "laptops", "gaming-laptops"]);
   });
 });

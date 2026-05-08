@@ -115,6 +115,19 @@ describe("catalog attribute filters", () => {
     });
   });
 
+  it("drops range groups that are not allowed for the current category family", () => {
+    expect(
+      buildCatalogAttributeRangeGroups(
+        [
+          { key: "load_capacity", label: "Загрузка", min: 8, max: 10, unit: "кг", count: 12 },
+          { key: "power_hp", label: "Мощность двигателя", min: 60, max: 1002, unit: "л.с.", count: 5 },
+          { key: "cable_section", label: "Сечение кабеля", min: 1.5, max: 6, unit: "мм²", count: 8 },
+        ],
+        ["load_capacity", "color"],
+      ),
+    ).toEqual([{ key: "load_capacity", label: "Загрузка", min: 8, max: 10, unit: "кг", count: 12 }]);
+  });
+
   it("builds grouped facet options from ProductAttribute counts", () => {
     expect(
       buildCatalogAttributeFilterGroups(
@@ -142,6 +155,35 @@ describe("catalog attribute filters", () => {
         options: [
           { value: "ram:8", label: "8 ГБ", count: 4 },
           { value: "ram:16", label: "16 ГБ", count: 9 },
+        ],
+      },
+    ]);
+  });
+
+  it("drops checkbox facet groups that are not allowed for the current category family", () => {
+    expect(
+      buildCatalogAttributeFilterGroups(
+        [
+          { key: "drying_type", label: "Тип сушки", value: "Тепловой насос", normalizedValue: "heat_pump", numericValue: null, unit: null, count: 8 },
+          { key: "electrical_product_type", label: "Тип электротовара", value: "Коробка/щит", normalizedValue: "box", numericValue: null, unit: null, count: 2 },
+          { key: "color", label: "Цвет", value: "Белый", normalizedValue: "white", numericValue: null, unit: null, count: 5 },
+          { key: "color", label: "Цвет", value: "Серый", normalizedValue: "gray", numericValue: null, unit: null, count: 2 },
+        ],
+        [],
+        ["drying_type", "color"],
+      ),
+    ).toEqual([
+      {
+        key: "drying_type",
+        label: "Тип сушки",
+        options: [{ value: "drying_type:heat_pump", label: "Тепловой насос", count: 8 }],
+      },
+      {
+        key: "color",
+        label: "Цвет",
+        options: [
+          { value: "color:white", label: "Белый", count: 5 },
+          { value: "color:gray", label: "Серый", count: 2 },
         ],
       },
     ]);

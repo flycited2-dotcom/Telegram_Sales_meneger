@@ -40,6 +40,14 @@ function cableCoreUnit(value: number): string {
   return "жил";
 }
 
+function looksLikeLaundryProduct(text: string): boolean {
+  return /сушильн|стиральн|washer|washing machine|dryer/i.test(text);
+}
+
+function looksLikeEngineProduct(text: string): boolean {
+  return /двигател|снегоубор|мотоблок|газонокос|генератор|культиватор|триммер|бензопил|мотопомп/i.test(text);
+}
+
 function extractElectricalProductType(text: string): { value: string; normalizedValue: string } | null {
   if (/кабел|провод|шнур|\bcable\b|\bwire\b|\bcord\b/i.test(text)) {
     return { value: "Кабель", normalizedValue: "cable" };
@@ -53,13 +61,13 @@ function extractElectricalProductType(text: string): { value: string; normalized
   if (/дифавтомат|автоматическ\D{0,12}выключател|узо|\bbreaker\b/i.test(text)) {
     return { value: "Автомат", normalizedValue: "breaker" };
   }
-  if (/светильник|ламп|\blamp\b|\blight\b/i.test(text)) {
+  if (/светильник|ламп|\blamp\b/i.test(text)) {
     return { value: "Светильник", normalizedValue: "lamp" };
   }
   if (/разъ[её]м|коннектор|клемм|\bconnector\b/i.test(text)) {
     return { value: "Коннектор", normalizedValue: "connector" };
   }
-  if (/коробк|щит|бокс|\bbox\b/i.test(text)) {
+  if (/коробк|бокс|\bbox\b|(^|[^а-яё])щит(ок)?(?=$|[^а-яё])/i.test(text)) {
     return { value: "Коробка/щит", normalizedValue: "box" };
   }
 
@@ -105,6 +113,128 @@ function addAttribute(
   attributes.push({ ...attribute, source: attribute.source ?? "name" });
 }
 
+function addNumberAttribute(
+  attributes: ExtractedProductAttribute[],
+  key: string,
+  label: string,
+  rawValue: string,
+  unit: string,
+) {
+  const normalized = compactNumber(rawValue);
+  addAttribute(attributes, {
+    key,
+    label,
+    value: `${normalized} ${unit}`,
+    normalizedValue: normalized,
+    numericValue: numberValue(normalized),
+    unit,
+  });
+}
+
+function extractLaundryAttributes(text: string, attributes: ExtractedProductAttribute[]) {
+  if (!looksLikeLaundryProduct(text)) return;
+
+  const load = text.match(/(?:макс\.?\s*загр\.?\s*:?\s*)?(\d+(?:[.,]\d+)?)\s*кг/i);
+  if (load) {
+    addNumberAttribute(attributes, "load_capacity", "Загрузка", load[1], "кг");
+  }
+
+  if (/теплов(ой|ым)\s+насос|heat\s*pump/i.test(text)) {
+    addAttribute(attributes, {
+      key: "drying_type",
+      label: "Тип сушки",
+      value: "Тепловой насос",
+      normalizedValue: "heat_pump",
+      numericValue: null,
+      unit: null,
+    });
+  } else if (/конденсацион/i.test(text)) {
+    addAttribute(attributes, {
+      key: "drying_type",
+      label: "Тип сушки",
+      value: "Конденсационная",
+      normalizedValue: "condensation",
+      numericValue: null,
+      unit: null,
+    });
+  } else if (/вентиляцион/i.test(text)) {
+    addAttribute(attributes, {
+      key: "drying_type",
+      label: "Тип сушки",
+      value: "Вентиляционная",
+      normalizedValue: "vented",
+      numericValue: null,
+      unit: null,
+    });
+  }
+
+  if (/отдельностоящ/i.test(text)) {
+    addAttribute(attributes, {
+      key: "installation_type",
+      label: "Установка",
+      value: "Отдельностоящая",
+      normalizedValue: "freestanding",
+      numericValue: null,
+      unit: null,
+    });
+  } else if (/встраиваем/i.test(text)) {
+    addAttribute(attributes, {
+      key: "installation_type",
+      label: "Установка",
+      value: "Встраиваемая",
+      normalizedValue: "built_in",
+      numericValue: null,
+      unit: null,
+    });
+  }
+
+  if (/inverter|инвертор/i.test(text)) {
+    addAttribute(attributes, {
+      key: "inverter_motor",
+      label: "Инверторный двигатель",
+      value: "Да",
+      normalizedValue: "yes",
+      numericValue: null,
+      unit: null,
+    });
+  }
+
+  const programs = text.match(/программ\D{0,8}(\d{1,2})/i) ?? text.match(/(\d{1,2})\s*программ/i);
+  if (programs) {
+    addNumberAttribute(attributes, "program_count", "Количество программ", programs[1], "программ");
+  }
+
+  const spinSpeed = text.match(/(\d{3,4})\s*(?:об\s*\/\s*мин|об\.?\s*мин)/i);
+  if (spinSpeed) {
+    addNumberAttribute(attributes, "spin_speed", "Скорость отжима", spinSpeed[1], "об/мин");
+  }
+
+  const dimensions = text.match(/(\d+(?:[.,]\d+)?)\s*[xх]\s*(\d+(?:[.,]\d+)?)\s*[xх]\s*(\d+(?:[.,]\d+)?)\s*см/i);
+  if (dimensions) {
+    addNumberAttribute(attributes, "width_cm", "Ширина", dimensions[1], "см");
+    addNumberAttribute(attributes, "height_cm", "Высота", dimensions[2], "см");
+    addNumberAttribute(attributes, "depth_cm", "Глубина", dimensions[3], "см");
+  } else {
+    const depth = text.match(/глубин[аы]?\s*(\d+(?:[.,]\d+)?)\s*см/i);
+    if (depth) {
+      addNumberAttribute(attributes, "depth_cm", "Глубина", depth[1], "см");
+    }
+  }
+
+  const energy = text.match(/(?:кл\.?\s*энер\.?|энергоэффективность|класс энергопотребления)\s*:?\s*([aа][+]{0,3}|[bcdefgвсдефг])/i);
+  if (energy) {
+    const value = energy[1].toLocaleUpperCase("ru-RU").replace(/^А/, "A");
+    addAttribute(attributes, {
+      key: "energy_class",
+      label: "Класс энергопотребления",
+      value,
+      normalizedValue: normalizeToken(value),
+      numericValue: null,
+      unit: null,
+    });
+  }
+}
+
 export function extractProductNameAttributes(name: string | null | undefined): ExtractedProductAttribute[] {
   const text = name?.trim();
   if (!text) return [];
@@ -113,15 +243,7 @@ export function extractProductNameAttributes(name: string | null | undefined): E
 
   const dailyCapacity = text.match(/(\d+(?:[.,]\d+)?)\s*л\s*\/\s*сут/i);
   if (dailyCapacity) {
-    const normalized = compactNumber(dailyCapacity[1]);
-    addAttribute(attributes, {
-      key: "daily_capacity",
-      label: "Производительность",
-      value: `${normalized} л/сутки`,
-      normalizedValue: normalized,
-      numericValue: numberValue(normalized),
-      unit: "л/сутки",
-    });
+    addNumberAttribute(attributes, "daily_capacity", "Производительность", dailyCapacity[1], "л/сутки");
   }
 
   const looksLikeTankProduct = /осушител|увлажнител|мойк[аи]\s+воздуха|бак|резервуар/i.test(text);
@@ -132,15 +254,7 @@ export function extractProductNameAttributes(name: string | null | undefined): E
       return value !== null && value > 0 && value <= 30;
     });
     if (tankMatch) {
-      const normalized = compactNumber(tankMatch[1]);
-      addAttribute(attributes, {
-        key: "tank_volume",
-        label: "Объем бака",
-        value: `${normalized} л`,
-        normalizedValue: normalized,
-        numericValue: numberValue(normalized),
-        unit: "л",
-      });
+      addNumberAttribute(attributes, "tank_volume", "Объем бака", tankMatch[1], "л");
     }
   }
 
@@ -187,6 +301,8 @@ export function extractProductNameAttributes(name: string | null | undefined): E
     });
   }
 
+  extractLaundryAttributes(text, attributes);
+
   const electricalProductType = extractElectricalProductType(text);
   if (electricalProductType) {
     addAttribute(attributes, {
@@ -213,54 +329,23 @@ export function extractProductNameAttributes(name: string | null | undefined): E
             unit: "жил",
           });
         }
-        addAttribute(attributes, {
-          key: "cable_section",
-          label: "Сечение кабеля",
-          value: `${section} мм²`,
-          normalizedValue: section,
-          numericValue: numberValue(section),
-          unit: "мм²",
-        });
+        addNumberAttribute(attributes, "cable_section", "Сечение кабеля", section, "мм²");
       }
 
       const cableLength = text.match(/(\d+(?:[.,]\d+)?)\s*м(?=$|[\s,;.])/i);
       if (cableLength) {
-        const normalized = compactNumber(cableLength[1]);
-        addAttribute(attributes, {
-          key: "cable_length",
-          label: "Длина",
-          value: `${normalized} м`,
-          normalizedValue: normalized,
-          numericValue: numberValue(normalized),
-          unit: "м",
-        });
+        addNumberAttribute(attributes, "cable_length", "Длина", cableLength[1], "м");
       }
     }
 
     const voltage = text.match(/(\d+(?:[.,]\d+)?)\s*(?:в|v)(?=$|[\s,;])/i);
     if (voltage) {
-      const normalized = compactNumber(voltage[1]);
-      addAttribute(attributes, {
-        key: "voltage",
-        label: "Напряжение",
-        value: `${normalized} В`,
-        normalizedValue: normalized,
-        numericValue: numberValue(normalized),
-        unit: "В",
-      });
+      addNumberAttribute(attributes, "voltage", "Напряжение", voltage[1], "В");
     }
 
     const current = text.match(/(\d+(?:[.,]\d+)?)\s*(?:а(?!\s*ч)|a(?!h))(?=$|[\s,;])/i);
     if (current) {
-      const normalized = compactNumber(current[1]);
-      addAttribute(attributes, {
-        key: "current_amp",
-        label: "Сила тока",
-        value: `${normalized} А`,
-        normalizedValue: normalized,
-        numericValue: numberValue(normalized),
-        unit: "А",
-      });
+      addNumberAttribute(attributes, "current_amp", "Сила тока", current[1], "А");
     }
 
     const power = text.match(/(\d+(?:[.,]\d+)?)\s*(квт|kw|вт|w)\b/i);
@@ -291,18 +376,18 @@ export function extractProductNameAttributes(name: string | null | undefined): E
         unit: null,
       });
     }
+  }
 
-    const color = extractColor(text);
-    if (color) {
-      addAttribute(attributes, {
-        key: "color",
-        label: "Цвет",
-        value: color.value,
-        normalizedValue: color.normalizedValue,
-        numericValue: null,
-        unit: null,
-      });
-    }
+  const color = extractColor(text);
+  if (color) {
+    addAttribute(attributes, {
+      key: "color",
+      label: "Цвет",
+      value: color.value,
+      normalizedValue: color.normalizedValue,
+      numericValue: null,
+      unit: null,
+    });
   }
 
   const powerSource = extractPowerSource(text);
@@ -317,58 +402,29 @@ export function extractProductNameAttributes(name: string | null | undefined): E
     });
   }
 
-  const powerHp = text.match(/(\d+(?:[.,]\d+)?)\s*(?:л\.?\s*с\.?|л[,;]\s*с\.?|hp|h\.?\s*p\.?)/i);
+  const powerHp =
+    text.match(/(\d+(?:[.,]\d+)?)\s*(?:л\.?\s*с\.?|л[,;]\s*с\.?)/i) ??
+    (looksLikeEngineProduct(text) ? text.match(/(\d+(?:[.,]\d+)?)\s*(?:hp\b|h\.?\s*p\.?\b)/i) : null);
   if (powerHp) {
-    const normalized = compactNumber(powerHp[1]);
-    addAttribute(attributes, {
-      key: "power_hp",
-      label: "Мощность двигателя",
-      value: `${normalized} л.с.`,
-      normalizedValue: normalized,
-      numericValue: numberValue(normalized),
-      unit: "л.с.",
-    });
+    addNumberAttribute(attributes, "power_hp", "Мощность двигателя", powerHp[1], "л.с.");
   }
 
   const looksLikeBatteryProduct = /аккумулятор|акб|battery|cordless|батаре/i.test(text) || /(\d+(?:[.,]\d+)?)\s*(?:а\s*ч|а·ч|ah)/i.test(text);
   if (looksLikeBatteryProduct) {
     const voltage = text.match(/(\d+(?:[.,]\d+)?)\s*(?:в|v)(?=$|[\s,;])/i);
     if (voltage) {
-      const normalized = compactNumber(voltage[1]);
-      addAttribute(attributes, {
-        key: "battery_voltage",
-        label: "Напряжение аккумулятора",
-        value: `${normalized} В`,
-        normalizedValue: normalized,
-        numericValue: numberValue(normalized),
-        unit: "В",
-      });
+      addNumberAttribute(attributes, "battery_voltage", "Напряжение аккумулятора", voltage[1], "В");
     }
 
     const capacity = text.match(/(\d+(?:[.,]\d+)?)\s*(?:а\s*ч|а·ч|ah)/i);
     if (capacity) {
-      const normalized = compactNumber(capacity[1]);
-      addAttribute(attributes, {
-        key: "battery_capacity",
-        label: "Емкость аккумулятора",
-        value: `${normalized} Ач`,
-        normalizedValue: normalized,
-        numericValue: numberValue(normalized),
-        unit: "Ач",
-      });
+      addNumberAttribute(attributes, "battery_capacity", "Емкость аккумулятора", capacity[1], "Ач");
     }
   }
 
   const ram = text.match(/(\d+)\s*(?:гб|gb)\s*(?:ram|оператив)/i) ?? text.match(/(?:ram|оператив\D{0,20})(\d+)\s*(?:гб|gb)/i);
   if (ram) {
-    addAttribute(attributes, {
-      key: "ram",
-      label: "Оперативная память",
-      value: `${ram[1]} ГБ`,
-      normalizedValue: ram[1],
-      numericValue: numberValue(ram[1]),
-      unit: "ГБ",
-    });
+    addNumberAttribute(attributes, "ram", "Оперативная память", ram[1], "ГБ");
   }
 
   const storageForward = text.match(/(ssd|hdd)\s*(\d+(?:[.,]\d+)?)\s*(гб|gb|тб|tb)/i);

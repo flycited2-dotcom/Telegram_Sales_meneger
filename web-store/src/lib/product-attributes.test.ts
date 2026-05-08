@@ -24,6 +24,15 @@ describe("extractProductNameAttributes", () => {
         unit: "л",
         source: "name",
       },
+      {
+        key: "color",
+        label: "Цвет",
+        value: "Белый",
+        normalizedValue: "white",
+        numericValue: null,
+        unit: null,
+        source: "name",
+      },
     ]);
   });
 
@@ -271,6 +280,37 @@ describe("extractProductNameAttributes", () => {
         unit: null,
         source: "name",
       },
+    ]);
+  });
+
+  it("does not treat appliance model codes and feature words as electrical or engine attributes", () => {
+    const names = [
+      "Сушильная машина Korting KD 60HP109",
+      "Сушильная машина Weissgauff WD 599 DC Inverter Heat Pump UV Light кл.энер.:A+++ макс.загр.:9кг белый",
+      "Сушильная машина Kuppersberg DM 611 W, отдельностоящая, тепловой насос, 8 кг, защита от сминания, белый",
+    ];
+
+    for (const name of names) {
+      const keys = extractProductNameAttributes(name).map((attribute) => attribute.key);
+      expect(keys).not.toContain("power_hp");
+      expect(keys).not.toContain("electrical_product_type");
+    }
+  });
+
+  it("extracts laundry appliance attributes from washer and dryer names", () => {
+    expect(
+      extractProductNameAttributes(
+        "Сушильная машина Kraft KF-DM1001HPW белый, 10 кг, сушка - тепловой насос, программ - 15, 60 x 84 x 62 см, инвертор",
+      ).map((attribute) => ({ key: attribute.key, value: attribute.value, normalizedValue: attribute.normalizedValue, numericValue: attribute.numericValue })),
+    ).toEqual([
+      { key: "load_capacity", value: "10 кг", normalizedValue: "10", numericValue: 10 },
+      { key: "drying_type", value: "Тепловой насос", normalizedValue: "heat_pump", numericValue: null },
+      { key: "inverter_motor", value: "Да", normalizedValue: "yes", numericValue: null },
+      { key: "program_count", value: "15 программ", normalizedValue: "15", numericValue: 15 },
+      { key: "width_cm", value: "60 см", normalizedValue: "60", numericValue: 60 },
+      { key: "height_cm", value: "84 см", normalizedValue: "84", numericValue: 84 },
+      { key: "depth_cm", value: "62 см", normalizedValue: "62", numericValue: 62 },
+      { key: "color", value: "Белый", normalizedValue: "white", numericValue: null },
     ]);
   });
 });
