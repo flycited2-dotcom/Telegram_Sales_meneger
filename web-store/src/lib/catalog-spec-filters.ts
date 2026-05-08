@@ -479,11 +479,14 @@ export function getCatalogSpecFilterLabel(value: CatalogSpecFilterValue): string
 export function attachCatalogSpecFilterCounts(
   options: CatalogSpecFilterOption[],
   counts: Map<CatalogSpecFilterValue, number>,
+  activeFilters: CatalogSpecFilterValue[] = [],
 ): CatalogSpecFilterOption[] {
+  const active = new Set(activeFilters);
+
   return options.map((option) => ({
     ...option,
     count: counts.get(option.key) ?? 0,
-  }));
+  })).filter((option) => option.count > 0 || active.has(option.key));
 }
 
 export function buildCatalogSpecFilterWhere(values: CatalogSpecFilterValue[]): Prisma.ProductWhereInput {

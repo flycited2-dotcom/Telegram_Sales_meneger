@@ -358,7 +358,7 @@ export async function getCatalogPage(query: CatalogQuery) {
       brands.map((row) => ({ vendor: row.vendor, count: row._count._all })),
       selectedBrands,
     ),
-    specFilterOptions: attachCatalogSpecFilterCounts(specFilterOptions, specFilterCounts),
+    specFilterOptions: attachCatalogSpecFilterCounts(specFilterOptions, specFilterCounts, query.specFilters),
   };
 }
 

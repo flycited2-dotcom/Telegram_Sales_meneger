@@ -200,11 +200,16 @@ describe("catalog spec filters", () => {
     const options = getCatalogSpecFilterOptions({ categoryName: "Телевизоры" });
 
     expect(attachCatalogSpecFilterCounts(options, new Map([["tv_smart", 42]]))).toEqual([
-      { key: "tv_4k", label: "4K / UHD", groupLabel: "Телевизоры", count: 0 },
-      { key: "tv_full_hd", label: "Full HD", groupLabel: "Телевизоры", count: 0 },
       { key: "tv_smart", label: "Smart TV", groupLabel: "Телевизоры", count: 42 },
-      { key: "tv_55_plus", label: "От 55 дюймов", groupLabel: "Телевизоры", count: 0 },
-      { key: "tv_65_plus", label: "От 65 дюймов", groupLabel: "Телевизоры", count: 0 },
+    ]);
+  });
+
+  it("keeps active spec filters visible even when their current count is zero", () => {
+    const options = getCatalogSpecFilterOptions({ categoryName: "Телевизоры" });
+
+    expect(attachCatalogSpecFilterCounts(options, new Map([["tv_smart", 42]]), ["tv_4k"])).toEqual([
+      { key: "tv_4k", label: "4K / UHD", groupLabel: "Телевизоры", count: 0 },
+      { key: "tv_smart", label: "Smart TV", groupLabel: "Телевизоры", count: 42 },
     ]);
   });
 });
