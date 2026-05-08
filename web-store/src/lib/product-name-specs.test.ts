@@ -40,6 +40,24 @@ describe("extractProductNameSpecs", () => {
     ]);
   });
 
+  it("extracts electrical cable hints for product cards", () => {
+    expect(extractProductNameSpecs("Кабель ВВГнг-LS 3х2,5 ГОСТ, бухта 100 м, белый")).toEqual([
+      { label: "Тип электротовара", value: "Кабель" },
+      { label: "Количество жил", value: "3 жилы" },
+      { label: "Сечение кабеля", value: "2.5 мм²" },
+      { label: "Длина", value: "100 м" },
+    ]);
+  });
+
+  it("extracts processor hints for laptop cards", () => {
+    expect(extractProductNameSpecs("Ноутбук ASUS VivoBook 15 Intel Core i5-1235U, 16 ГБ RAM, SSD 512 ГБ, HDMI, Wi-Fi")).toEqual([
+      { label: "Оперативная память", value: "16 ГБ" },
+      { label: "Накопитель", value: "SSD 512 ГБ" },
+      { label: "Процессор", value: "Intel Core i5" },
+      { label: "Модель процессора", value: "Intel Core i5-1235U" },
+    ]);
+  });
+
   it("does not invent specs for generic names", () => {
     expect(extractProductNameSpecs("Стиральная машина белая")).toEqual([]);
   });

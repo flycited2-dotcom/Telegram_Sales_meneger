@@ -19,7 +19,19 @@ function addSpec(specs: ExtractedProductSpec[], label: string, value: string) {
   specs.push({ label, value });
 }
 
-const cardAttributeKeys = new Set(["power_source", "power_hp", "battery_voltage", "battery_capacity"]);
+const cardAttributeKeys = new Set([
+  "power_source",
+  "power_hp",
+  "battery_voltage",
+  "battery_capacity",
+  "electrical_product_type",
+  "cable_cores",
+  "cable_section",
+  "cable_length",
+  "processor_family",
+  "processor_model",
+  "interface",
+]);
 
 export function extractProductNameSpecs(name: string | null | undefined): ExtractedProductSpec[] {
   const text = name?.trim();

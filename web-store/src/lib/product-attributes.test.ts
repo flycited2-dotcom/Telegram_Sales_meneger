@@ -153,4 +153,124 @@ describe("extractProductNameAttributes", () => {
       "battery_capacity",
     ]);
   });
+
+  it("extracts electrical cable attributes from product names", () => {
+    expect(extractProductNameAttributes("Кабель ВВГнг-LS 3х2,5 ГОСТ, бухта 100 м, белый")).toEqual([
+      {
+        key: "electrical_product_type",
+        label: "Тип электротовара",
+        value: "Кабель",
+        normalizedValue: "cable",
+        numericValue: null,
+        unit: null,
+        source: "name",
+      },
+      {
+        key: "cable_cores",
+        label: "Количество жил",
+        value: "3 жилы",
+        normalizedValue: "3",
+        numericValue: 3,
+        unit: "жил",
+        source: "name",
+      },
+      {
+        key: "cable_section",
+        label: "Сечение кабеля",
+        value: "2.5 мм²",
+        normalizedValue: "2.5",
+        numericValue: 2.5,
+        unit: "мм²",
+        source: "name",
+      },
+      {
+        key: "cable_length",
+        label: "Длина",
+        value: "100 м",
+        normalizedValue: "100",
+        numericValue: 100,
+        unit: "м",
+        source: "name",
+      },
+      {
+        key: "color",
+        label: "Цвет",
+        value: "Белый",
+        normalizedValue: "white",
+        numericValue: null,
+        unit: null,
+        source: "name",
+      },
+    ]);
+  });
+
+  it("extracts processor and interface attributes from laptop names", () => {
+    expect(
+      extractProductNameAttributes("Ноутбук ASUS VivoBook 15 Intel Core i5-1235U, 16 ГБ RAM, SSD 512 ГБ, HDMI, Wi-Fi"),
+    ).toEqual([
+      {
+        key: "ram",
+        label: "Оперативная память",
+        value: "16 ГБ",
+        normalizedValue: "16",
+        numericValue: 16,
+        unit: "ГБ",
+        source: "name",
+      },
+      {
+        key: "storage_type",
+        label: "Тип накопителя",
+        value: "SSD",
+        normalizedValue: "ssd",
+        numericValue: null,
+        unit: null,
+        source: "name",
+      },
+      {
+        key: "storage_capacity",
+        label: "Объем накопителя",
+        value: "512 ГБ",
+        normalizedValue: "512",
+        numericValue: 512,
+        unit: "ГБ",
+        source: "name",
+      },
+      {
+        key: "processor_family",
+        label: "Процессор",
+        value: "Intel Core i5",
+        normalizedValue: "intel_core_i5",
+        numericValue: null,
+        unit: null,
+        source: "name",
+      },
+      {
+        key: "processor_model",
+        label: "Модель процессора",
+        value: "Intel Core i5-1235U",
+        normalizedValue: "intel_core_i5_1235u",
+        numericValue: null,
+        unit: null,
+        source: "name",
+      },
+      {
+        key: "interface",
+        label: "Интерфейс",
+        value: "HDMI",
+        normalizedValue: "hdmi",
+        numericValue: null,
+        unit: null,
+        source: "name",
+      },
+      {
+        key: "interface",
+        label: "Интерфейс",
+        value: "Wi-Fi",
+        normalizedValue: "wi_fi",
+        numericValue: null,
+        unit: null,
+        source: "name",
+      },
+    ]);
+  });
 });
