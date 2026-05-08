@@ -90,4 +90,67 @@ describe("extractProductNameAttributes", () => {
       },
     ]);
   });
+
+  it("extracts garden equipment power attributes from product names", () => {
+    expect(extractProductNameAttributes("Снегоуборщик бензиновый Elitech ST 0762LE 7л.с.")).toEqual([
+      {
+        key: "power_source",
+        label: "Тип питания",
+        value: "Бензиновый",
+        normalizedValue: "petrol",
+        numericValue: null,
+        unit: null,
+        source: "name",
+      },
+      {
+        key: "power_hp",
+        label: "Мощность двигателя",
+        value: "7 л.с.",
+        normalizedValue: "7",
+        numericValue: 7,
+        unit: "л.с.",
+        source: "name",
+      },
+    ]);
+  });
+
+  it("extracts battery voltage and capacity from cordless equipment names", () => {
+    expect(extractProductNameAttributes("Газонокосилка аккумуляторная Makita DLM538CT2, 36 В, 5 Ач")).toEqual([
+      {
+        key: "power_source",
+        label: "Тип питания",
+        value: "Аккумуляторный",
+        normalizedValue: "battery",
+        numericValue: null,
+        unit: null,
+        source: "name",
+      },
+      {
+        key: "battery_voltage",
+        label: "Напряжение аккумулятора",
+        value: "36 В",
+        normalizedValue: "36",
+        numericValue: 36,
+        unit: "В",
+        source: "name",
+      },
+      {
+        key: "battery_capacity",
+        label: "Емкость аккумулятора",
+        value: "5 Ач",
+        normalizedValue: "5",
+        numericValue: 5,
+        unit: "Ач",
+        source: "name",
+      },
+    ]);
+  });
+
+  it("extracts compact battery units without spaces", () => {
+    expect(extractProductNameAttributes("Триммер аккумуляторный 18В 4Ач").map((attribute) => attribute.key)).toEqual([
+      "power_source",
+      "battery_voltage",
+      "battery_capacity",
+    ]);
+  });
 });

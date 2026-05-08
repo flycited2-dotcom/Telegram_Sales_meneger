@@ -34,6 +34,10 @@ const attributeKeyOrder = [
   "smart_tv",
   "daily_capacity",
   "tank_volume",
+  "power_source",
+  "power_hp",
+  "battery_voltage",
+  "battery_capacity",
 ];
 
 export const catalogAttributeFacetKeys = attributeKeyOrder;
@@ -78,6 +82,27 @@ export function buildCatalogAttributeFilterWhere(filters: CatalogAttributeFilter
         },
       },
     })),
+  };
+}
+
+function toProductWhereArray(value: Prisma.ProductWhereInput["AND"]): Prisma.ProductWhereInput[] {
+  if (!value) return [];
+
+  return Array.isArray(value) ? value : [value];
+}
+
+export function buildCatalogAttributeFacetProductWhere(
+  baseWhere: Prisma.ProductWhereInput,
+  activeFilters: CatalogAttributeFilter[],
+  facetKey: string,
+): Prisma.ProductWhereInput {
+  const otherAttributeWhere = buildCatalogAttributeFilterWhere(activeFilters.filter((filter) => filter.key !== facetKey));
+  const otherAttributeAnd = toProductWhereArray(otherAttributeWhere.AND);
+  if (!otherAttributeAnd.length) return { ...baseWhere };
+
+  return {
+    ...baseWhere,
+    AND: [...toProductWhereArray(baseWhere.AND), ...otherAttributeAnd],
   };
 }
 

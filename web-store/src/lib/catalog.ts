@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { unstable_cache } from "next/cache";
 import {
   buildCatalogAttributeFilterGroups,
+  buildCatalogAttributeFacetProductWhere,
   buildCatalogAttributeFilterWhere,
   catalogAttributeFacetKeys,
   type CatalogAttributeFilter,
@@ -260,24 +261,59 @@ async function getCatalogSpecFilterCounts(options: CatalogSpecFilterOption[], ba
   return counts;
 }
 
+type CatalogAttributeGroupByRow = {
+  key: string;
+  label: string;
+  value: string;
+  normalizedValue: string;
+  numericValue: number | null;
+  unit: string | null;
+  _count: {
+    _all: number;
+  };
+};
+
 async function getCatalogAttributeFilterGroups(
   baseWhere: Prisma.ProductWhereInput,
   activeFilters: CatalogAttributeFilter[] = [],
 ): Promise<CatalogAttributeFilterGroup[]> {
-  const rows = await prisma.productAttribute.groupBy({
-    by: ["key", "label", "value", "normalizedValue", "numericValue", "unit"],
-    where: {
-      key: {
-        in: catalogAttributeFacetKeys,
-      },
-      product: {
-        is: baseWhere,
-      },
-    },
-    _count: {
-      _all: true,
-    },
-  });
+  const rows: CatalogAttributeGroupByRow[] = [];
+
+  if (!activeFilters.length) {
+    rows.push(
+      ...(await prisma.productAttribute.groupBy({
+        by: ["key", "label", "value", "normalizedValue", "numericValue", "unit"],
+        where: {
+          key: {
+            in: catalogAttributeFacetKeys,
+          },
+          product: {
+            is: baseWhere,
+          },
+        },
+        _count: {
+          _all: true,
+        },
+      })),
+    );
+  } else {
+    for (const facetKey of catalogAttributeFacetKeys) {
+      rows.push(
+        ...(await prisma.productAttribute.groupBy({
+          by: ["key", "label", "value", "normalizedValue", "numericValue", "unit"],
+          where: {
+            key: facetKey,
+            product: {
+              is: buildCatalogAttributeFacetProductWhere(baseWhere, activeFilters, facetKey),
+            },
+          },
+          _count: {
+            _all: true,
+          },
+        })),
+      );
+    }
+  }
 
   return buildCatalogAttributeFilterGroups(
     rows.map((row) => ({

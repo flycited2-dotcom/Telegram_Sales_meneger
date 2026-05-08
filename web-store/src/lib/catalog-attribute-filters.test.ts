@@ -1,15 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   buildCatalogAttributeFilterGroups,
+  buildCatalogAttributeFacetProductWhere,
   buildCatalogAttributeFilterWhere,
   normalizeCatalogAttributeFilters,
 } from "@/lib/catalog-attribute-filters";
 
 describe("catalog attribute filters", () => {
   it("normalizes URL attribute filters and removes duplicates", () => {
-    expect(normalizeCatalogAttributeFilters(["storage_type:ssd", "bad", "ram:16", "storage_type:ssd", " : "])).toEqual([
+    expect(normalizeCatalogAttributeFilters(["storage_type:ssd", "bad", "ram:16", "power_source:petrol", "storage_type:ssd", " : "])).toEqual([
       { key: "storage_type", normalizedValue: "ssd" },
       { key: "ram", normalizedValue: "16" },
+      { key: "power_source", normalizedValue: "petrol" },
     ]);
   });
 
@@ -29,6 +31,35 @@ describe("catalog attribute filters", () => {
             some: {
               key: "ram",
               normalizedValue: "16",
+            },
+          },
+        },
+      ],
+    });
+  });
+
+  it("builds facet count where using other selected attributes but not the current group", () => {
+    expect(
+      buildCatalogAttributeFacetProductWhere(
+        {
+          isActive: true,
+          AND: [{ isVisible: true }],
+        },
+        [
+          { key: "storage_type", normalizedValue: "ssd" },
+          { key: "ram", normalizedValue: "16" },
+        ],
+        "ram",
+      ),
+    ).toEqual({
+      isActive: true,
+      AND: [
+        { isVisible: true },
+        {
+          attributes: {
+            some: {
+              key: "storage_type",
+              normalizedValue: "ssd",
             },
           },
         },

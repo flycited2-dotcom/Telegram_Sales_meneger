@@ -24,6 +24,23 @@ function normalizeStorageUnit(unit: string): string {
   return lower === "тб" || lower === "tb" ? "ТБ" : "ГБ";
 }
 
+function extractPowerSource(text: string): { value: string; normalizedValue: string } | null {
+  if (/аккумуляторн|акб|battery|cordless/i.test(text)) {
+    return { value: "Аккумуляторный", normalizedValue: "battery" };
+  }
+  if (/бензинов/i.test(text)) {
+    return { value: "Бензиновый", normalizedValue: "petrol" };
+  }
+  if (/дизельн/i.test(text)) {
+    return { value: "Дизельный", normalizedValue: "diesel" };
+  }
+  if (/электрическ|сетев/i.test(text)) {
+    return { value: "Электрический", normalizedValue: "electric" };
+  }
+
+  return null;
+}
+
 function addAttribute(
   attributes: ExtractedProductAttribute[],
   attribute: Omit<ExtractedProductAttribute, "source"> & { source?: ProductAttributeSource },
@@ -112,6 +129,60 @@ export function extractProductNameAttributes(name: string | null | undefined): E
       numericValue: null,
       unit: null,
     });
+  }
+
+  const powerSource = extractPowerSource(text);
+  if (powerSource) {
+    addAttribute(attributes, {
+      key: "power_source",
+      label: "Тип питания",
+      value: powerSource.value,
+      normalizedValue: powerSource.normalizedValue,
+      numericValue: null,
+      unit: null,
+    });
+  }
+
+  const powerHp = text.match(/(\d+(?:[.,]\d+)?)\s*(?:л\.?\s*с\.?|л[,;]\s*с\.?|hp|h\.?\s*p\.?)/i);
+  if (powerHp) {
+    const normalized = compactNumber(powerHp[1]);
+    addAttribute(attributes, {
+      key: "power_hp",
+      label: "Мощность двигателя",
+      value: `${normalized} л.с.`,
+      normalizedValue: normalized,
+      numericValue: numberValue(normalized),
+      unit: "л.с.",
+    });
+  }
+
+  const looksLikeBatteryProduct = /аккумулятор|акб|battery|cordless|батаре/i.test(text) || /(\d+(?:[.,]\d+)?)\s*(?:а\s*ч|а·ч|ah)/i.test(text);
+  if (looksLikeBatteryProduct) {
+    const voltage = text.match(/(\d+(?:[.,]\d+)?)\s*(?:в|v)(?=$|[\s,;])/i);
+    if (voltage) {
+      const normalized = compactNumber(voltage[1]);
+      addAttribute(attributes, {
+        key: "battery_voltage",
+        label: "Напряжение аккумулятора",
+        value: `${normalized} В`,
+        normalizedValue: normalized,
+        numericValue: numberValue(normalized),
+        unit: "В",
+      });
+    }
+
+    const capacity = text.match(/(\d+(?:[.,]\d+)?)\s*(?:а\s*ч|а·ч|ah)/i);
+    if (capacity) {
+      const normalized = compactNumber(capacity[1]);
+      addAttribute(attributes, {
+        key: "battery_capacity",
+        label: "Емкость аккумулятора",
+        value: `${normalized} Ач`,
+        normalizedValue: normalized,
+        numericValue: numberValue(normalized),
+        unit: "Ач",
+      });
+    }
   }
 
   const ram = text.match(/(\d+)\s*(?:гб|gb)\s*(?:ram|оператив)/i) ?? text.match(/(?:ram|оператив\D{0,20})(\d+)\s*(?:гб|gb)/i);
