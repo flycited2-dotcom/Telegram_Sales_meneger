@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { catalogAttributeFacetKeys } from "@/lib/catalog-attribute-registry";
 
 export type CatalogAttributeFilter = {
   key: string;
@@ -25,24 +26,9 @@ export type CatalogAttributeFacetRow = {
   count: number;
 };
 
-const attributeKeyOrder = [
-  "storage_type",
-  "storage_capacity",
-  "ram",
-  "screen_diagonal",
-  "resolution",
-  "smart_tv",
-  "daily_capacity",
-  "tank_volume",
-  "power_source",
-  "power_hp",
-  "battery_voltage",
-  "battery_capacity",
-];
+export { catalogAttributeFacetKeys } from "@/lib/catalog-attribute-registry";
 
-export const catalogAttributeFacetKeys = attributeKeyOrder;
-
-const keyRank = new Map(attributeKeyOrder.map((key, index) => [key, index]));
+const keyRank = new Map(catalogAttributeFacetKeys.map((key, index) => [key, index]));
 
 export function catalogAttributeFilterParam(filter: CatalogAttributeFilter): string {
   return `${filter.key}:${filter.normalizedValue}`;
