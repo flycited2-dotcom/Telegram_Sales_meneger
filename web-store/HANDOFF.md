@@ -124,6 +124,8 @@
 - Category-aware filters deployed: `/catalog/dacha-sad-i-ogorod-11038` - `200`; HTML contains `Садовая техника`, `Снегоуборщики`, `Газонокосилки`, filter search placeholders and `Под заказ 7 дней`; HTML does not contain unrelated `4K / UHD`, `SSD`, `No Frost`; `.next/BUILD_ID=uENx1ei5doG7zD8dAUQXd`, PM2 `online`. New PM2 log tail after smoke is empty. Backup source before deploy: `/var/www/climat-simf.ru.source-backup-20260507231439.tar.gz`
 - In progress: `spec` filters with zero count are hidden unless they are active in the URL, so the characteristics panel follows the current category/product set instead of showing empty options.
 - Empty `spec` filter options deployed: `/catalog/dacha-sad-i-ogorod-11038` - `200`, `/catalog/dacha-sad-i-ogorod-11038?spec=garden_snow_blower` - `200`, `/catalog?spec=tv_smart` - `200`, `/sitemap.xml` - `200`; garden page contains `Садовая техника`, `Снегоуборщики`, `Под заказ 7 дней` and does not contain unrelated `4K / UHD`, `SSD`, `No Frost`; `.next/BUILD_ID=MfESVGyMqhTD9qDKwzD1l`, PM2 `online`. New PM2 log tail after smoke is empty. Backup source before deploy: `/var/www/climat-simf.ru.source-backup-20260508152500.tar.gz`
+- Dynamic `attr`-фасеты от `ProductAttribute` выложены на VPS: `/catalog?attr=storage_type:ssd` - `200`, `/catalog?attr=ram:16` - `200`, `/catalog/dacha-sad-i-ogorod-11038` - `200`, `/search?q=ssd&attr=storage_type:ssd` - `200`, `/sitemap.xml` - `200`; HTML содержит `Параметры товаров`, `Тип накопителя`, `Под заказ 7 дней`; `.next/BUILD_ID=Q4ANMtoemGwpIYShX0qFl`. Backup source before deploy: `/var/www/climat-simf.ru.source-backup-20260508165228.tar.gz`
+- Фасеты типа питания и аккумуляторной техники выложены на VPS: `npm run deploy:vps` - `Deploy completed`, затем `npm run sync:attributes` - `scanned=299048 written=46362`. Новые атрибуты: `power_source=14360`, `battery_voltage=5081`, `battery_capacity=2661`, `power_hp=1784`. Smoke: `/catalog/dacha-sad-i-ogorod-11038?attr=power_source:petrol` - `200`, `/catalog/dacha-sad-i-ogorod-11038?attr=power_source:battery` - `200`, `/catalog/dacha-sad-i-ogorod-11038?attr=power_source:battery&attr=battery_voltage:36` - `200`, `/search?q=Makita&attr=power_source:battery` - `200`, `/sitemap.xml` - `200`; HTML содержит `Параметры товаров`, `Тип питания`, `Аккумуляторный`, `Напряжение аккумулятора`, `Под заказ 7 дней`; `.next/BUILD_ID=Xv07-RX_E8rGSlbENO1MW`, PM2 `online`, fresh error-log empty. Backup source before deploy: `/var/www/climat-simf.ru.source-backup-20260508170658.tar.gz`
 - PM2 `climat-simf-store` - online
 
 Предыдущие проверки:
@@ -143,7 +145,8 @@
 
 2. Phase B для машины продаж:
    - проверить поведение сортировок и быстрых фильтров на реальных популярных категориях
-   - добавить категорийные фильтры по характеристикам там, где данные реально есть: бренд, гарантия, вес/габариты, мощность/тип из отдельного источника
+   - расширить извлечение характеристик там, где данные реально есть: гарантия, вес/габариты, ширина/высота/глубина, объем, класс энергопотребления
+   - сделать числовые диапазоны для `attr`-фасетов: диагональ, объем накопителя, мощность, напряжение, емкость АКБ
    - доработать карточки под выбранные категории: климат, холодильники, телевизоры, компьютерная техника
    - подготовить админский или полуавтоматический источник расширенных характеристик для важных SKU
 
