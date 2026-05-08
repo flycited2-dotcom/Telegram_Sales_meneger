@@ -25,9 +25,15 @@ export function SearchableCheckboxList({
   const visibleOptions = normalizedQuery
     ? options.filter((option) => option.label.toLocaleLowerCase("ru-RU").includes(normalizedQuery))
     : options;
+  const visibleValues = new Set(visibleOptions.map((option) => option.value));
 
   return (
     <div className="grid gap-2">
+      {selectedValues
+        .filter((value) => !visibleValues.has(value))
+        .map((value) => (
+          <input key={value} type="hidden" name={name} value={value} />
+        ))}
       {options.length > 6 ? (
         <input
           type="search"

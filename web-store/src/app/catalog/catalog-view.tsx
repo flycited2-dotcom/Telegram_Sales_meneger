@@ -3,6 +3,7 @@ import { ArrowUpDown, ChevronDown, Image as ImageIcon, Phone, Search, ShieldChec
 import Link from "next/link";
 import { CatalogGrid } from "@/components/catalog-grid";
 import { SearchableCheckboxList } from "@/components/searchable-checkbox-list";
+import { catalogAttributeFilterParam, type CatalogAttributeFilter, type CatalogAttributeFilterGroup } from "@/lib/catalog-attribute-filters";
 import type { CatalogBrandFilterOption } from "@/lib/catalog-brand-filters";
 import type { CategoryTreeItem } from "@/lib/catalog-tree";
 import type { CatalogSort } from "@/lib/catalog-query";
@@ -26,6 +27,7 @@ type CatalogUrlState = {
   maxPrice?: number;
   sort?: CatalogSort;
   specFilters?: CatalogSpecFilterValue[];
+  attributeFilters?: CatalogAttributeFilter[];
   page?: number;
 };
 
@@ -39,6 +41,7 @@ function catalogHref(basePath: string, state: CatalogUrlState): string {
   if (state.maxPrice) params.set("maxPrice", String(state.maxPrice));
   if (state.sort && state.sort !== "popular") params.set("sort", state.sort);
   state.specFilters?.forEach((filter) => params.append("spec", filter));
+  state.attributeFilters?.forEach((filter) => params.append("attr", catalogAttributeFilterParam(filter)));
   if (state.page && state.page > 1) params.set("page", String(state.page));
   const query = params.toString();
   return query ? `${basePath}?${query}` : basePath;
@@ -158,6 +161,8 @@ function FiltersPanel({
   sort,
   specFilterOptions,
   currentSpecFilters = [],
+  attributeFilterGroups,
+  currentAttributeFilters = [],
   framed = true,
 }: {
   basePath: string;
@@ -171,10 +176,20 @@ function FiltersPanel({
   sort: CatalogSort;
   specFilterOptions: CatalogSpecFilterOption[];
   currentSpecFilters?: CatalogSpecFilterValue[];
+  attributeFilterGroups: CatalogAttributeFilterGroup[];
+  currentAttributeFilters?: CatalogAttributeFilter[];
   framed?: boolean;
 }) {
   const hasFilters = Boolean(
-    currentBrands.length || currentQuery || onlyAvailable || withPhoto || minPrice || maxPrice || sort !== "popular" || currentSpecFilters.length,
+    currentBrands.length ||
+      currentQuery ||
+      onlyAvailable ||
+      withPhoto ||
+      minPrice ||
+      maxPrice ||
+      sort !== "popular" ||
+      currentSpecFilters.length ||
+      currentAttributeFilters.length,
   );
   const specFilterGroups = specFilterOptions.reduce<Array<{ label: string; options: CatalogSpecFilterOption[] }>>((groups, option) => {
     const group = groups.find((item) => item.label === option.groupLabel);
@@ -254,6 +269,26 @@ function FiltersPanel({
                     options={group.options.map((option) => ({ value: option.key, label: option.label, count: option.count }))}
                     selectedValues={currentSpecFilters}
                     searchPlaceholder="Найти характеристику"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </fieldset>
+      ) : null}
+      {attributeFilterGroups.length ? (
+        <fieldset className="mt-4 border-t border-zinc-100 pt-4">
+          <legend className="text-sm font-semibold text-zinc-700">Параметры товаров</legend>
+          <div className="mt-3 grid gap-4">
+            {attributeFilterGroups.map((group) => (
+              <div key={group.key}>
+                <p className="text-xs font-bold uppercase tracking-wide text-zinc-400">{group.label}</p>
+                <div className="mt-2">
+                  <SearchableCheckboxList
+                    name="attr"
+                    options={group.options}
+                    selectedValues={currentAttributeFilters.map(catalogAttributeFilterParam)}
+                    searchPlaceholder="Найти значение"
                   />
                 </div>
               </div>
@@ -407,12 +442,15 @@ function ActiveFilterChips({
   basePath,
   state,
   specFilterOptions,
+  attributeFilterGroups,
 }: {
   basePath: string;
   state: CatalogUrlState & { sort: CatalogSort };
   specFilterOptions: CatalogSpecFilterOption[];
+  attributeFilterGroups: CatalogAttributeFilterGroup[];
 }) {
   const specFilterLabels = new Map(specFilterOptions.map((option) => [option.key, option.label]));
+  const attributeFilterLabels = new Map(attributeFilterGroups.flatMap((group) => group.options.map((option) => [option.value, `${group.label}: ${option.label}`])));
   const chips = [
     state.query
       ? {
@@ -460,6 +498,17 @@ function ActiveFilterChips({
         page: 1,
       }),
     })),
+    ...(state.attributeFilters ?? []).map((filter) => {
+      const value = catalogAttributeFilterParam(filter);
+      return {
+        label: attributeFilterLabels.get(value) ?? value,
+        href: catalogHref(basePath, {
+          ...state,
+          attributeFilters: state.attributeFilters?.filter((current) => catalogAttributeFilterParam(current) !== value),
+          page: 1,
+        }),
+      };
+    }),
     state.sort !== "popular"
       ? {
           label: catalogSortLabels[state.sort],
@@ -507,6 +556,8 @@ export function CatalogView({
   sort = "popular",
   currentSpecFilters = [],
   specFilterOptions = [],
+  currentAttributeFilters = [],
+  attributeFilterGroups = [],
   basePath = "/catalog",
   error,
 }: {
@@ -527,6 +578,8 @@ export function CatalogView({
   sort?: CatalogSort;
   currentSpecFilters?: CatalogSpecFilterValue[];
   specFilterOptions?: CatalogSpecFilterOption[];
+  currentAttributeFilters?: CatalogAttributeFilter[];
+  attributeFilterGroups?: CatalogAttributeFilterGroup[];
   basePath?: string;
   error?: string;
 }) {
@@ -540,6 +593,7 @@ export function CatalogView({
     maxPrice,
     sort,
     specFilters: currentSpecFilters,
+    attributeFilters: currentAttributeFilters,
   };
   const activeFilterCount = countActiveCatalogFilters({
     query: currentQuery,
@@ -550,6 +604,7 @@ export function CatalogView({
     maxPrice,
     sort,
     specFilters: currentSpecFilters,
+    attributeFilters: currentAttributeFilters,
   });
   const pageHref = (nextPage: number) => {
     return catalogHref(basePath, { ...state, page: nextPage });
@@ -569,7 +624,7 @@ export function CatalogView({
         <CatalogTrustStrip />
         <QuickCategoryRail categories={categories} currentCategorySlug={currentCategorySlug} />
         <CatalogControls basePath={basePath} state={state} />
-        <ActiveFilterChips basePath={basePath} state={state} specFilterOptions={specFilterOptions} />
+        <ActiveFilterChips basePath={basePath} state={state} specFilterOptions={specFilterOptions} attributeFilterGroups={attributeFilterGroups} />
 
         <div className="sticky top-16 z-30 mb-6 grid gap-2 bg-stone-50/95 py-2 backdrop-blur lg:hidden">
           <details className="rounded-lg border border-zinc-200 bg-white shadow-sm">
@@ -599,6 +654,8 @@ export function CatalogView({
                 sort={sort}
                 specFilterOptions={specFilterOptions}
                 currentSpecFilters={currentSpecFilters}
+                attributeFilterGroups={attributeFilterGroups}
+                currentAttributeFilters={currentAttributeFilters}
                 framed={false}
               />
             </div>
@@ -658,6 +715,8 @@ export function CatalogView({
           sort={sort}
           specFilterOptions={specFilterOptions}
           currentSpecFilters={currentSpecFilters}
+          attributeFilterGroups={attributeFilterGroups}
+          currentAttributeFilters={currentAttributeFilters}
         />
         </div>
       </aside>

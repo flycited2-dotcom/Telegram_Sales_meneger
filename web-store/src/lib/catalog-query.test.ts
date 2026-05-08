@@ -24,6 +24,7 @@ describe("parseCatalogSearchParams", () => {
         page: "3",
         sort: "price_asc",
         spec: ["tv_4k", "unknown", "storage_ssd"],
+        attr: ["storage_type:ssd", "ram:16", "bad"],
       }),
     ).toEqual({
       query: "холодильник",
@@ -36,6 +37,10 @@ describe("parseCatalogSearchParams", () => {
       page: 3,
       sort: "price_asc",
       specFilters: ["tv_4k", "storage_ssd"],
+      attributeFilters: [
+        { key: "storage_type", normalizedValue: "ssd" },
+        { key: "ram", normalizedValue: "16" },
+      ],
     });
   });
 
@@ -51,6 +56,7 @@ describe("parseCatalogSearchParams", () => {
       page: 1,
       sort: "popular",
       specFilters: [],
+      attributeFilters: [],
     });
   });
 });

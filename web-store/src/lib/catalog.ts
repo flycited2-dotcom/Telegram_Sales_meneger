@@ -1,5 +1,12 @@
 import type { Prisma } from "@prisma/client";
 import { unstable_cache } from "next/cache";
+import {
+  buildCatalogAttributeFilterGroups,
+  buildCatalogAttributeFilterWhere,
+  catalogAttributeFacetKeys,
+  type CatalogAttributeFilter,
+  type CatalogAttributeFilterGroup,
+} from "@/lib/catalog-attribute-filters";
 import { buildCatalogBrandFilterOptions } from "@/lib/catalog-brand-filters";
 import { buildCategoryTree, collectDescendantCategoryIds, type CategoryTreeItem, type FlatCategory } from "@/lib/catalog-tree";
 import { normalizeCatalogBrandValues, type CatalogSort } from "@/lib/catalog-query";
@@ -28,6 +35,7 @@ export type CatalogQuery = {
   page?: number;
   sort?: CatalogSort;
   specFilters?: CatalogSpecFilterValue[];
+  attributeFilters?: CatalogAttributeFilter[];
 };
 
 export function decimalToNumber(value: unknown): number {
@@ -229,6 +237,12 @@ function applySelectedBrands(where: Prisma.ProductWhereInput, selectedBrands: st
   }
 }
 
+function appendProductWhereAnd(where: Prisma.ProductWhereInput, conditions: Prisma.ProductWhereInput[]) {
+  if (conditions.length) {
+    where.AND = [...toProductWhereArray(where.AND), ...conditions];
+  }
+}
+
 async function getCatalogSpecFilterCounts(options: CatalogSpecFilterOption[], baseWhere: Prisma.ProductWhereInput) {
   const counts = new Map<CatalogSpecFilterValue, number>();
 
@@ -244,6 +258,39 @@ async function getCatalogSpecFilterCounts(options: CatalogSpecFilterOption[], ba
   }
 
   return counts;
+}
+
+async function getCatalogAttributeFilterGroups(
+  baseWhere: Prisma.ProductWhereInput,
+  activeFilters: CatalogAttributeFilter[] = [],
+): Promise<CatalogAttributeFilterGroup[]> {
+  const rows = await prisma.productAttribute.groupBy({
+    by: ["key", "label", "value", "normalizedValue", "numericValue", "unit"],
+    where: {
+      key: {
+        in: catalogAttributeFacetKeys,
+      },
+      product: {
+        is: baseWhere,
+      },
+    },
+    _count: {
+      _all: true,
+    },
+  });
+
+  return buildCatalogAttributeFilterGroups(
+    rows.map((row) => ({
+      key: row.key,
+      label: row.label,
+      value: row.value,
+      normalizedValue: row.normalizedValue,
+      numericValue: row.numericValue,
+      unit: row.unit,
+      count: row._count._all,
+    })),
+    activeFilters,
+  );
 }
 
 export async function getCatalogPage(query: CatalogQuery) {
@@ -305,14 +352,22 @@ export async function getCatalogPage(query: CatalogQuery) {
     categoryName: category?.name,
     activeFilters: query.specFilters,
   });
-  const specCountBaseWhere: Prisma.ProductWhereInput = { ...filteredWhere };
-  applySelectedBrands(specCountBaseWhere, selectedBrands);
 
   const specWhere = buildCatalogSpecFilterWhere(query.specFilters ?? []);
   const specAnd = toProductWhereArray(specWhere.AND);
-  if (specAnd.length) {
-    filteredWhere.AND = [...toProductWhereArray(filteredWhere.AND), ...specAnd];
-  }
+  const attributeWhere = buildCatalogAttributeFilterWhere(query.attributeFilters ?? []);
+  const attributeAnd = toProductWhereArray(attributeWhere.AND);
+
+  const specCountBaseWhere: Prisma.ProductWhereInput = { ...filteredWhere };
+  appendProductWhereAnd(specCountBaseWhere, attributeAnd);
+  applySelectedBrands(specCountBaseWhere, selectedBrands);
+
+  appendProductWhereAnd(filteredWhere, specAnd);
+
+  const attributeFacetBaseWhere: Prisma.ProductWhereInput = { ...filteredWhere };
+  applySelectedBrands(attributeFacetBaseWhere, selectedBrands);
+
+  appendProductWhereAnd(filteredWhere, attributeAnd);
 
   const brandWhere: Prisma.ProductWhereInput = {
     ...filteredWhere,
@@ -346,6 +401,7 @@ export async function getCatalogPage(query: CatalogQuery) {
   const categories = await getCatalogCategoryTree(allCategories);
   const brands = await getCatalogBrands(brandWhere);
   const specFilterCounts = await getCatalogSpecFilterCounts(specFilterOptions, specCountBaseWhere);
+  const attributeFilterGroups = await getCatalogAttributeFilterGroups(attributeFacetBaseWhere, query.attributeFilters);
 
   return {
     category,
@@ -359,6 +415,7 @@ export async function getCatalogPage(query: CatalogQuery) {
       selectedBrands,
     ),
     specFilterOptions: attachCatalogSpecFilterCounts(specFilterOptions, specFilterCounts, query.specFilters),
+    attributeFilterGroups,
   };
 }
 
