@@ -513,6 +513,14 @@ export async function getProductBySlug(slug: string) {
           priority: "asc",
         },
       },
+      attributes: {
+        where: {
+          source: {
+            in: ["manual", "name"],
+          },
+        },
+        orderBy: [{ key: "asc" }, { value: "asc" }],
+      },
     },
   });
 }

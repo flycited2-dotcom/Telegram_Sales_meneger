@@ -25,6 +25,21 @@ describe("extractProductNameSpecs", () => {
     ]);
   });
 
+  it("extracts power hints for garden equipment cards", () => {
+    expect(extractProductNameSpecs("Снегоуборщик бензиновый Elitech ST 0762LE 7л.с.")).toEqual([
+      { label: "Тип питания", value: "Бензиновый" },
+      { label: "Мощность двигателя", value: "7 л.с." },
+    ]);
+  });
+
+  it("extracts battery hints for cordless equipment cards", () => {
+    expect(extractProductNameSpecs("Газонокосилка аккумуляторная Makita DLM538CT2, 36 В, 5 Ач")).toEqual([
+      { label: "Тип питания", value: "Аккумуляторный" },
+      { label: "Напряжение аккумулятора", value: "36 В" },
+      { label: "Емкость аккумулятора", value: "5 Ач" },
+    ]);
+  });
+
   it("does not invent specs for generic names", () => {
     expect(extractProductNameSpecs("Стиральная машина белая")).toEqual([]);
   });

@@ -85,6 +85,7 @@ export default async function ProductPage({ params }: Props) {
     volume: product.volume,
     deliveryDays: product.deliveryDays,
     multiplicity: product.multiplicity,
+    attributes: product.attributes,
   });
   const description = productDescriptionText(product.description, {
     supplierName: product.supplierName,

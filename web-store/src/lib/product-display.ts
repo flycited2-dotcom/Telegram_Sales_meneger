@@ -6,6 +6,12 @@ export type ProductFact = {
   value: string;
 };
 
+export type ProductAttributeFactInput = {
+  key: string;
+  label: string;
+  value: string;
+};
+
 export type ProductFactInput = {
   sku: number;
   title?: string | null;
@@ -18,6 +24,7 @@ export type ProductFactInput = {
   volume?: number | null;
   deliveryDays?: number | null;
   multiplicity?: number | null;
+  attributes?: ProductAttributeFactInput[];
 };
 
 export type ProductDescriptionInput = {
@@ -71,11 +78,46 @@ function pushFact(facts: ProductFact[], label: string, value: string | number | 
   facts.push({ label, value: String(value) });
 }
 
+const productAttributeFactOrder = [
+  "power_source",
+  "power_hp",
+  "battery_voltage",
+  "battery_capacity",
+  "daily_capacity",
+  "tank_volume",
+  "screen_diagonal",
+  "resolution",
+  "smart_tv",
+  "ram",
+  "storage_type",
+  "storage_capacity",
+];
+
+const productAttributeFactRank = new Map(productAttributeFactOrder.map((key, index) => [key, index]));
+
+function buildAttributeFacts(attributes: ProductAttributeFactInput[] | null | undefined): ProductFact[] {
+  const seen = new Set<string>();
+
+  return [...(attributes ?? [])]
+    .sort((left, right) => (productAttributeFactRank.get(left.key) ?? 999) - (productAttributeFactRank.get(right.key) ?? 999))
+    .flatMap((attribute) => {
+      const label = attribute.label.trim();
+      const value = attribute.value.trim();
+      const id = `${label}:${value}`;
+      if (!label || !value || seen.has(id)) return [];
+      seen.add(id);
+
+      return [{ label, value }];
+    });
+}
+
 export function buildProductFacts(product: ProductFactInput): ProductFact[] {
   const facts: ProductFact[] = [];
 
   pushFact(facts, "SKU", product.sku);
-  for (const spec of extractProductNameSpecs(product.title)) {
+  const attributeFacts = buildAttributeFacts(product.attributes);
+  const titleFacts = attributeFacts.length ? [] : extractProductNameSpecs(product.title);
+  for (const spec of [...attributeFacts, ...titleFacts]) {
     pushFact(facts, spec.label, spec.value);
   }
   pushFact(facts, "Категория", product.categoryName);

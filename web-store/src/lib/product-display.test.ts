@@ -61,6 +61,24 @@ describe("buildProductFacts", () => {
       { label: "Срок поставки", value: "Под заказ 7 дней" },
     ]);
   });
+
+  it("uses saved product attributes before title fallback specs", () => {
+    expect(
+      buildProductFacts({
+        sku: 123,
+        title: "Снегоуборщик Elitech ST 0762LE",
+        attributes: [
+          { key: "power_hp", label: "Мощность двигателя", value: "7 л.с." },
+          { key: "power_source", label: "Тип питания", value: "Бензиновый" },
+        ],
+      }),
+    ).toEqual([
+      { label: "SKU", value: "123" },
+      { label: "Тип питания", value: "Бензиновый" },
+      { label: "Мощность двигателя", value: "7 л.с." },
+      { label: "Срок поставки", value: "Под заказ 7 дней" },
+    ]);
+  });
 });
 
 describe("buildProductCardHighlights", () => {

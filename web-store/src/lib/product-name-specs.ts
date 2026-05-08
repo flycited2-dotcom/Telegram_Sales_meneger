@@ -1,3 +1,5 @@
+import { extractProductNameAttributes } from "@/lib/product-attributes";
+
 export type ExtractedProductSpec = {
   label: string;
   value: string;
@@ -16,6 +18,8 @@ function addSpec(specs: ExtractedProductSpec[], label: string, value: string) {
   if (specs.some((spec) => spec.label === label && spec.value === value)) return;
   specs.push({ label, value });
 }
+
+const cardAttributeKeys = new Set(["power_source", "power_hp", "battery_voltage", "battery_capacity"]);
 
 export function extractProductNameSpecs(name: string | null | undefined): ExtractedProductSpec[] {
   const text = name?.trim();
@@ -70,6 +74,12 @@ export function extractProductNameSpecs(name: string | null | undefined): Extrac
       "Накопитель",
       `${storageReverse[3].toLocaleUpperCase("ru-RU")} ${compactNumber(storageReverse[1])} ${normalizeStorageUnit(storageReverse[2])}`,
     );
+  }
+
+  for (const attribute of extractProductNameAttributes(text)) {
+    if (cardAttributeKeys.has(attribute.key)) {
+      addSpec(specs, attribute.label, attribute.value);
+    }
   }
 
   return specs.slice(0, 4);
