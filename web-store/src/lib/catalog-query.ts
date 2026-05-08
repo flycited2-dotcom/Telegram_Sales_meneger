@@ -36,6 +36,22 @@ function allParams(value: string | string[] | undefined): string[] {
   return Array.isArray(value) ? value : [value];
 }
 
+function keyedRangeParams(params: CatalogSearchParams, prefix: "attrMin" | "attrMax"): string[] {
+  const keyPrefix = `${prefix}.`;
+
+  return Object.entries(params).flatMap(([name, value]) => {
+    if (!name.startsWith(keyPrefix)) return [];
+
+    const attributeKey = name.slice(keyPrefix.length).trim();
+    if (!attributeKey) return [];
+
+    return allParams(value)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .map((item) => `${attributeKey}:${item}`);
+  });
+}
+
 export function parsePositiveNumberParam(value: string | string[] | undefined): number | undefined {
   const raw = firstParam(value)?.trim().replace(",", ".");
   if (!raw) return undefined;
@@ -84,8 +100,8 @@ export function parseCatalogSearchParams(params: CatalogSearchParams): ParsedCat
     specFilters: normalizeCatalogSpecFilterValues(allParams(params.spec)),
     attributeFilters: normalizeCatalogAttributeFilters(allParams(params.attr)),
     attributeRangeFilters: normalizeCatalogAttributeRangeFilters({
-      minValues: allParams(params.attrMin),
-      maxValues: allParams(params.attrMax),
+      minValues: [...allParams(params.attrMin), ...keyedRangeParams(params, "attrMin")],
+      maxValues: [...allParams(params.attrMax), ...keyedRangeParams(params, "attrMax")],
     }),
   };
 }

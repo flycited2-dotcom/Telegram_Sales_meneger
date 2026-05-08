@@ -57,6 +57,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
     sort: filters.sort,
     specFilters: filters.specFilters,
     attributeFilters: filters.attributeFilters,
+    attributeRangeFilters: filters.attributeRangeFilters,
   });
 
   if (!data.category) {
@@ -84,6 +85,8 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       specFilterOptions={data.specFilterOptions}
       currentAttributeFilters={filters.attributeFilters}
       attributeFilterGroups={data.attributeFilterGroups}
+      currentAttributeRangeFilters={filters.attributeRangeFilters}
+      attributeRangeGroups={data.attributeRangeGroups}
       basePath={`/catalog/${data.category.slug}`}
     />
   );

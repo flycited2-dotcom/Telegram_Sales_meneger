@@ -12,6 +12,8 @@ describe("catalog robots metadata", () => {
       { page: 2, sort: "popular", specFilters: [] },
       { page: 1, sort: "price_asc", specFilters: [] },
       { page: 1, sort: "popular", specFilters: ["tv_4k"] },
+      { page: 1, sort: "popular", specFilters: [], attributeFilters: [{ key: "ram", normalizedValue: "16" }] },
+      { page: 1, sort: "popular", specFilters: [], attributeRangeFilters: [{ key: "ram", min: 16 }] },
       { page: 1, sort: "popular", specFilters: [], brand: "Samsung" },
       { page: 1, sort: "popular", specFilters: [], query: "ssd" },
       { page: 1, sort: "popular", specFilters: [], onlyAvailable: true },

@@ -37,6 +37,7 @@ export default async function SearchPage({ searchParams }: Props) {
         sort: filters.sort,
         specFilters: filters.specFilters,
         attributeFilters: filters.attributeFilters,
+        attributeRangeFilters: filters.attributeRangeFilters,
       }),
       shouldRecordSearch ? recordSearchTerm(query).catch(() => undefined) : Promise.resolve(),
     ]);
@@ -59,6 +60,7 @@ export default async function SearchPage({ searchParams }: Props) {
         sort={filters.sort}
         currentSpecFilters={filters.specFilters}
         currentAttributeFilters={filters.attributeFilters}
+        currentAttributeRangeFilters={filters.attributeRangeFilters}
         basePath="/search"
         error="Поиск временно недоступен. Позвоните нам, и менеджер поможет подобрать товар вручную."
       />
@@ -85,6 +87,8 @@ export default async function SearchPage({ searchParams }: Props) {
       specFilterOptions={data.specFilterOptions}
       currentAttributeFilters={filters.attributeFilters}
       attributeFilterGroups={data.attributeFilterGroups}
+      currentAttributeRangeFilters={filters.attributeRangeFilters}
+      attributeRangeGroups={data.attributeRangeGroups}
       basePath="/search"
     />
   );

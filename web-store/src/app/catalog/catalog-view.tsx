@@ -3,7 +3,13 @@ import { ArrowUpDown, ChevronDown, Image as ImageIcon, Phone, Search, ShieldChec
 import Link from "next/link";
 import { CatalogGrid } from "@/components/catalog-grid";
 import { SearchableCheckboxList } from "@/components/searchable-checkbox-list";
-import { catalogAttributeFilterParam, type CatalogAttributeFilter, type CatalogAttributeFilterGroup } from "@/lib/catalog-attribute-filters";
+import {
+  catalogAttributeFilterParam,
+  type CatalogAttributeFilter,
+  type CatalogAttributeFilterGroup,
+  type CatalogAttributeRangeFilter,
+  type CatalogAttributeRangeGroup,
+} from "@/lib/catalog-attribute-filters";
 import type { CatalogBrandFilterOption } from "@/lib/catalog-brand-filters";
 import type { CategoryTreeItem } from "@/lib/catalog-tree";
 import type { CatalogSort } from "@/lib/catalog-query";
@@ -28,6 +34,7 @@ type CatalogUrlState = {
   sort?: CatalogSort;
   specFilters?: CatalogSpecFilterValue[];
   attributeFilters?: CatalogAttributeFilter[];
+  attributeRangeFilters?: CatalogAttributeRangeFilter[];
   page?: number;
 };
 
@@ -42,9 +49,26 @@ function catalogHref(basePath: string, state: CatalogUrlState): string {
   if (state.sort && state.sort !== "popular") params.set("sort", state.sort);
   state.specFilters?.forEach((filter) => params.append("spec", filter));
   state.attributeFilters?.forEach((filter) => params.append("attr", catalogAttributeFilterParam(filter)));
+  state.attributeRangeFilters?.forEach((filter) => {
+    if (filter.min !== undefined) params.append("attrMin", `${filter.key}:${filter.min}`);
+    if (filter.max !== undefined) params.append("attrMax", `${filter.key}:${filter.max}`);
+  });
   if (state.page && state.page > 1) params.set("page", String(state.page));
   const query = params.toString();
   return query ? `${basePath}?${query}` : basePath;
+}
+
+function removeAttributeRangeBound(
+  filters: CatalogAttributeRangeFilter[] | undefined,
+  key: string,
+  bound: "min" | "max",
+): CatalogAttributeRangeFilter[] {
+  return (filters ?? []).flatMap((filter) => {
+    if (filter.key !== key) return [filter];
+
+    const next = { ...filter, [bound]: undefined };
+    return next.min !== undefined || next.max !== undefined ? [next] : [];
+  });
 }
 
 function hasActiveCategory(category: CategoryTreeItem, currentCategorySlug?: string): boolean {
@@ -163,6 +187,8 @@ function FiltersPanel({
   currentSpecFilters = [],
   attributeFilterGroups,
   currentAttributeFilters = [],
+  attributeRangeGroups,
+  currentAttributeRangeFilters = [],
   framed = true,
 }: {
   basePath: string;
@@ -178,6 +204,8 @@ function FiltersPanel({
   currentSpecFilters?: CatalogSpecFilterValue[];
   attributeFilterGroups: CatalogAttributeFilterGroup[];
   currentAttributeFilters?: CatalogAttributeFilter[];
+  attributeRangeGroups: CatalogAttributeRangeGroup[];
+  currentAttributeRangeFilters?: CatalogAttributeRangeFilter[];
   framed?: boolean;
 }) {
   const hasFilters = Boolean(
@@ -189,7 +217,8 @@ function FiltersPanel({
       maxPrice ||
       sort !== "popular" ||
       currentSpecFilters.length ||
-      currentAttributeFilters.length,
+      currentAttributeFilters.length ||
+      currentAttributeRangeFilters.length,
   );
   const specFilterGroups = specFilterOptions.reduce<Array<{ label: string; options: CatalogSpecFilterOption[] }>>((groups, option) => {
     const group = groups.find((item) => item.label === option.groupLabel);
@@ -293,6 +322,48 @@ function FiltersPanel({
                 </div>
               </div>
             ))}
+          </div>
+        </fieldset>
+      ) : null}
+      {attributeRangeGroups.length ? (
+        <fieldset className="mt-4 border-t border-zinc-100 pt-4">
+          <legend className="text-sm font-semibold text-zinc-700">Диапазоны</legend>
+          <div className="mt-3 grid gap-4">
+            {attributeRangeGroups.map((group) => {
+              const current = currentAttributeRangeFilters.find((filter) => filter.key === group.key);
+              const unit = group.unit ? `, ${group.unit}` : "";
+
+              return (
+                <div key={group.key}>
+                  <p className="text-xs font-bold uppercase tracking-wide text-zinc-400">
+                    {group.label}
+                    {unit}
+                  </p>
+                  <div className="mt-2 grid grid-cols-2 gap-3">
+                    <label className="block text-sm font-medium text-zinc-700">
+                      От
+                      <input
+                        name={`attrMin.${group.key}`}
+                        inputMode="decimal"
+                        defaultValue={current?.min ?? ""}
+                        placeholder={String(group.min)}
+                        className="mt-2 h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm"
+                      />
+                    </label>
+                    <label className="block text-sm font-medium text-zinc-700">
+                      До
+                      <input
+                        name={`attrMax.${group.key}`}
+                        inputMode="decimal"
+                        defaultValue={current?.max ?? ""}
+                        placeholder={String(group.max)}
+                        className="mt-2 h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm"
+                      />
+                    </label>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </fieldset>
       ) : null}
@@ -422,6 +493,13 @@ function CatalogControls({
         {state.minPrice ? <input type="hidden" name="minPrice" value={state.minPrice} /> : null}
         {state.maxPrice ? <input type="hidden" name="maxPrice" value={state.maxPrice} /> : null}
         {state.specFilters?.map((filter) => <input key={filter} type="hidden" name="spec" value={filter} />)}
+        {state.attributeFilters?.map((filter) => <input key={catalogAttributeFilterParam(filter)} type="hidden" name="attr" value={catalogAttributeFilterParam(filter)} />)}
+        {state.attributeRangeFilters?.map((filter) => (
+          <span key={filter.key} className="hidden">
+            {filter.min !== undefined ? <input type="hidden" name="attrMin" value={`${filter.key}:${filter.min}`} /> : null}
+            {filter.max !== undefined ? <input type="hidden" name="attrMax" value={`${filter.key}:${filter.max}`} /> : null}
+          </span>
+        ))}
         <label className="sr-only" htmlFor="catalog-sort">
           Сортировка
         </label>
@@ -443,14 +521,17 @@ function ActiveFilterChips({
   state,
   specFilterOptions,
   attributeFilterGroups,
+  attributeRangeGroups,
 }: {
   basePath: string;
   state: CatalogUrlState & { sort: CatalogSort };
   specFilterOptions: CatalogSpecFilterOption[];
   attributeFilterGroups: CatalogAttributeFilterGroup[];
+  attributeRangeGroups: CatalogAttributeRangeGroup[];
 }) {
   const specFilterLabels = new Map(specFilterOptions.map((option) => [option.key, option.label]));
   const attributeFilterLabels = new Map(attributeFilterGroups.flatMap((group) => group.options.map((option) => [option.value, `${group.label}: ${option.label}`])));
+  const attributeRangeLabels = new Map(attributeRangeGroups.map((group) => [group.key, group]));
   const chips = [
     state.query
       ? {
@@ -509,6 +590,35 @@ function ActiveFilterChips({
         }),
       };
     }),
+    ...(state.attributeRangeFilters ?? []).flatMap((filter) => {
+      const group = attributeRangeLabels.get(filter.key);
+      const label = group?.label ?? filter.key;
+      const unit = group?.unit ? ` ${group.unit}` : "";
+      const rangeChips: Array<{ label: string; href: string }> = [];
+
+      if (filter.min !== undefined) {
+        rangeChips.push({
+          label: `${label}: от ${filter.min.toLocaleString("ru-RU")}${unit}`,
+          href: catalogHref(basePath, {
+            ...state,
+            attributeRangeFilters: removeAttributeRangeBound(state.attributeRangeFilters, filter.key, "min"),
+            page: 1,
+          }),
+        });
+      }
+      if (filter.max !== undefined) {
+        rangeChips.push({
+          label: `${label}: до ${filter.max.toLocaleString("ru-RU")}${unit}`,
+          href: catalogHref(basePath, {
+            ...state,
+            attributeRangeFilters: removeAttributeRangeBound(state.attributeRangeFilters, filter.key, "max"),
+            page: 1,
+          }),
+        });
+      }
+
+      return rangeChips;
+    }),
     state.sort !== "popular"
       ? {
           label: catalogSortLabels[state.sort],
@@ -558,6 +668,8 @@ export function CatalogView({
   specFilterOptions = [],
   currentAttributeFilters = [],
   attributeFilterGroups = [],
+  currentAttributeRangeFilters = [],
+  attributeRangeGroups = [],
   basePath = "/catalog",
   error,
 }: {
@@ -580,6 +692,8 @@ export function CatalogView({
   specFilterOptions?: CatalogSpecFilterOption[];
   currentAttributeFilters?: CatalogAttributeFilter[];
   attributeFilterGroups?: CatalogAttributeFilterGroup[];
+  currentAttributeRangeFilters?: CatalogAttributeRangeFilter[];
+  attributeRangeGroups?: CatalogAttributeRangeGroup[];
   basePath?: string;
   error?: string;
 }) {
@@ -594,6 +708,7 @@ export function CatalogView({
     sort,
     specFilters: currentSpecFilters,
     attributeFilters: currentAttributeFilters,
+    attributeRangeFilters: currentAttributeRangeFilters,
   };
   const activeFilterCount = countActiveCatalogFilters({
     query: currentQuery,
@@ -605,6 +720,7 @@ export function CatalogView({
     sort,
     specFilters: currentSpecFilters,
     attributeFilters: currentAttributeFilters,
+    attributeRangeFilters: currentAttributeRangeFilters,
   });
   const pageHref = (nextPage: number) => {
     return catalogHref(basePath, { ...state, page: nextPage });
@@ -624,7 +740,13 @@ export function CatalogView({
         <CatalogTrustStrip />
         <QuickCategoryRail categories={categories} currentCategorySlug={currentCategorySlug} />
         <CatalogControls basePath={basePath} state={state} />
-        <ActiveFilterChips basePath={basePath} state={state} specFilterOptions={specFilterOptions} attributeFilterGroups={attributeFilterGroups} />
+        <ActiveFilterChips
+          basePath={basePath}
+          state={state}
+          specFilterOptions={specFilterOptions}
+          attributeFilterGroups={attributeFilterGroups}
+          attributeRangeGroups={attributeRangeGroups}
+        />
 
         <div className="sticky top-16 z-30 mb-6 grid gap-2 bg-stone-50/95 py-2 backdrop-blur lg:hidden">
           <details className="rounded-lg border border-zinc-200 bg-white shadow-sm">
@@ -656,6 +778,8 @@ export function CatalogView({
                 currentSpecFilters={currentSpecFilters}
                 attributeFilterGroups={attributeFilterGroups}
                 currentAttributeFilters={currentAttributeFilters}
+                attributeRangeGroups={attributeRangeGroups}
+                currentAttributeRangeFilters={currentAttributeRangeFilters}
                 framed={false}
               />
             </div>
@@ -717,6 +841,8 @@ export function CatalogView({
           currentSpecFilters={currentSpecFilters}
           attributeFilterGroups={attributeFilterGroups}
           currentAttributeFilters={currentAttributeFilters}
+          attributeRangeGroups={attributeRangeGroups}
+          currentAttributeRangeFilters={currentAttributeRangeFilters}
         />
         </div>
       </aside>

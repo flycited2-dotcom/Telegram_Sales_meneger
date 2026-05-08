@@ -37,13 +37,13 @@ export const catalogAttributeDefinitions = [
   { key: "interface", label: "Интерфейс", valueType: "enum", control: "checkbox" },
 ] as const satisfies readonly CatalogAttributeDefinition[];
 
-export const catalogAttributeFacetKeys = catalogAttributeDefinitions.map((definition) => definition.key);
+export const catalogAttributeFacetKeys: string[] = catalogAttributeDefinitions.map((definition) => definition.key);
 
-export const catalogRangeAttributeKeys = catalogAttributeDefinitions
+export const catalogRangeAttributeKeys: string[] = catalogAttributeDefinitions
   .filter((definition) => definition.control === "range")
   .map((definition) => definition.key);
 
-const catalogAttributeDefinitionByKey = new Map(catalogAttributeDefinitions.map((definition) => [definition.key, definition]));
+const catalogAttributeDefinitionByKey = new Map<string, CatalogAttributeDefinition>(catalogAttributeDefinitions.map((definition) => [definition.key, definition]));
 
 export function getCatalogAttributeDefinition(key: string): CatalogAttributeDefinition | undefined {
   return catalogAttributeDefinitionByKey.get(key);

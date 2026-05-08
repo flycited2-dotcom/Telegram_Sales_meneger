@@ -3,6 +3,7 @@ import {
   buildCatalogAttributeFilterGroups,
   buildCatalogAttributeFacetProductWhere,
   buildCatalogAttributeFilterWhere,
+  buildCatalogAttributeRangeGroups,
   buildCatalogAttributeRangeFilterWhere,
   normalizeCatalogAttributeFilters,
   normalizeCatalogAttributeRangeFilters,
@@ -69,6 +70,20 @@ describe("catalog attribute filters", () => {
         },
       ],
     });
+  });
+
+  it("builds numeric range groups from aggregate rows", () => {
+    expect(
+      buildCatalogAttributeRangeGroups([
+        { key: "ram", label: "Оперативная память", min: 8, max: 64, unit: "ГБ", count: 25 },
+        { key: "power_hp", label: "Мощность двигателя", min: 5, max: 18, unit: "л.с.", count: 10 },
+        { key: "screen_diagonal", label: "Диагональ", min: 55, max: 55, unit: "дюйм", count: 3 },
+        { key: "unknown", label: "Unknown", min: 1, max: 10, unit: null, count: 4 },
+      ]),
+    ).toEqual([
+      { key: "ram", label: "Оперативная память", min: 8, max: 64, unit: "ГБ", count: 25 },
+      { key: "power_hp", label: "Мощность двигателя", min: 5, max: 18, unit: "л.с.", count: 10 },
+    ]);
   });
 
   it("builds facet count where using other selected attributes but not the current group", () => {

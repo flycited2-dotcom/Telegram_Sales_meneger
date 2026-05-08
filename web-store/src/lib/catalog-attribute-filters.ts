@@ -22,6 +22,15 @@ export type CatalogAttributeFilterGroup = {
   }>;
 };
 
+export type CatalogAttributeRangeGroup = {
+  key: string;
+  label: string;
+  min: number;
+  max: number;
+  unit: string | null;
+  count: number;
+};
+
 export type CatalogAttributeFacetRow = {
   key: string;
   label: string;
@@ -131,6 +140,12 @@ export function buildCatalogAttributeRangeFilterWhere(filters: CatalogAttributeR
       },
     })),
   };
+}
+
+export function buildCatalogAttributeRangeGroups(rows: CatalogAttributeRangeGroup[]): CatalogAttributeRangeGroup[] {
+  return rows
+    .filter((row) => keyRank.has(row.key) && row.count > 0 && Number.isFinite(row.min) && Number.isFinite(row.max) && row.min < row.max)
+    .sort((left, right) => (keyRank.get(left.key) ?? 999) - (keyRank.get(right.key) ?? 999));
 }
 
 function toProductWhereArray(value: Prisma.ProductWhereInput["AND"]): Prisma.ProductWhereInput[] {

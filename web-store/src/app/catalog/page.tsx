@@ -48,6 +48,7 @@ export default async function CatalogPage({ searchParams }: Props) {
       sort: filters.sort,
       specFilters: filters.specFilters,
       attributeFilters: filters.attributeFilters,
+      attributeRangeFilters: filters.attributeRangeFilters,
     });
   } catch {
     return (
@@ -84,6 +85,8 @@ export default async function CatalogPage({ searchParams }: Props) {
       specFilterOptions={data.specFilterOptions}
       currentAttributeFilters={filters.attributeFilters}
       attributeFilterGroups={data.attributeFilterGroups}
+      currentAttributeRangeFilters={filters.attributeRangeFilters}
+      attributeRangeGroups={data.attributeRangeGroups}
     />
   );
 }

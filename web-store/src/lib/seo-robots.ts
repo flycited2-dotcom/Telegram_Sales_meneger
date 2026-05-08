@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { CatalogAttributeFilter, CatalogAttributeRangeFilter } from "@/lib/catalog-attribute-filters";
 import type { CatalogSort } from "@/lib/catalog-query";
 import type { CatalogSpecFilterValue } from "@/lib/catalog-spec-filters";
 
@@ -12,6 +13,8 @@ export type CatalogRobotsFilters = {
   page: number;
   sort: CatalogSort;
   specFilters: CatalogSpecFilterValue[];
+  attributeFilters?: CatalogAttributeFilter[];
+  attributeRangeFilters?: CatalogAttributeRangeFilter[];
 };
 
 export function isIndexableCatalogFilters(filters: CatalogRobotsFilters): boolean {
@@ -24,7 +27,9 @@ export function isIndexableCatalogFilters(filters: CatalogRobotsFilters): boolea
     filters.maxPrice ||
     filters.page > 1 ||
     filters.sort !== "popular" ||
-    filters.specFilters.length
+    filters.specFilters.length ||
+    filters.attributeFilters?.length ||
+    filters.attributeRangeFilters?.length
   );
 }
 

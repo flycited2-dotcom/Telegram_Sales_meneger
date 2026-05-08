@@ -66,4 +66,17 @@ describe("parseCatalogSearchParams", () => {
       attributeRangeFilters: [],
     });
   });
+
+  it("parses touch-friendly keyed range form fields", () => {
+    expect(
+      parseCatalogSearchParams({
+        "attrMin.ram": "16",
+        "attrMax.ram": "64",
+        "attrMin.storage_capacity": "512",
+      }).attributeRangeFilters,
+    ).toEqual([
+      { key: "ram", min: 16, max: 64 },
+      { key: "storage_capacity", min: 512 },
+    ]);
+  });
 });

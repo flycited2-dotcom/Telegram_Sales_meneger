@@ -4,10 +4,15 @@ import {
   buildCatalogAttributeFilterGroups,
   buildCatalogAttributeFacetProductWhere,
   buildCatalogAttributeFilterWhere,
+  buildCatalogAttributeRangeFilterWhere,
+  buildCatalogAttributeRangeGroups,
   catalogAttributeFacetKeys,
   type CatalogAttributeFilter,
   type CatalogAttributeFilterGroup,
+  type CatalogAttributeRangeFilter,
+  type CatalogAttributeRangeGroup,
 } from "@/lib/catalog-attribute-filters";
+import { catalogRangeAttributeKeys, getCatalogAttributeDefinition } from "@/lib/catalog-attribute-registry";
 import { buildCatalogBrandFilterOptions } from "@/lib/catalog-brand-filters";
 import { buildCategoryTree, collectDescendantCategoryIds, type CategoryTreeItem, type FlatCategory } from "@/lib/catalog-tree";
 import { normalizeCatalogBrandValues, type CatalogSort } from "@/lib/catalog-query";
@@ -37,6 +42,7 @@ export type CatalogQuery = {
   sort?: CatalogSort;
   specFilters?: CatalogSpecFilterValue[];
   attributeFilters?: CatalogAttributeFilter[];
+  attributeRangeFilters?: CatalogAttributeRangeFilter[];
 };
 
 export function decimalToNumber(value: unknown): number {
@@ -329,6 +335,49 @@ async function getCatalogAttributeFilterGroups(
   );
 }
 
+async function getCatalogAttributeRangeGroups(baseWhere: Prisma.ProductWhereInput): Promise<CatalogAttributeRangeGroup[]> {
+  const rows: CatalogAttributeRangeGroup[] = [];
+
+  for (const key of catalogRangeAttributeKeys) {
+    const definition = getCatalogAttributeDefinition(key);
+    if (!definition) continue;
+
+    const aggregate = await prisma.productAttribute.aggregate({
+      where: {
+        key,
+        numericValue: {
+          not: null,
+        },
+        product: {
+          is: baseWhere,
+        },
+      },
+      _min: {
+        numericValue: true,
+      },
+      _max: {
+        numericValue: true,
+      },
+      _count: {
+        _all: true,
+      },
+    });
+
+    if (aggregate._min.numericValue !== null && aggregate._max.numericValue !== null) {
+      rows.push({
+        key,
+        label: definition.label,
+        min: aggregate._min.numericValue,
+        max: aggregate._max.numericValue,
+        unit: definition.unit ?? null,
+        count: aggregate._count._all,
+      });
+    }
+  }
+
+  return buildCatalogAttributeRangeGroups(rows);
+}
+
 export async function getCatalogPage(query: CatalogQuery) {
   const page = Math.max(query.page ?? 1, 1);
   const selectedBrands = normalizeCatalogBrandValues([...(query.brands ?? []), query.brand]);
@@ -393,17 +442,26 @@ export async function getCatalogPage(query: CatalogQuery) {
   const specAnd = toProductWhereArray(specWhere.AND);
   const attributeWhere = buildCatalogAttributeFilterWhere(query.attributeFilters ?? []);
   const attributeAnd = toProductWhereArray(attributeWhere.AND);
+  const attributeRangeWhere = buildCatalogAttributeRangeFilterWhere(query.attributeRangeFilters ?? []);
+  const attributeRangeAnd = toProductWhereArray(attributeRangeWhere.AND);
 
   const specCountBaseWhere: Prisma.ProductWhereInput = { ...filteredWhere };
   appendProductWhereAnd(specCountBaseWhere, attributeAnd);
+  appendProductWhereAnd(specCountBaseWhere, attributeRangeAnd);
   applySelectedBrands(specCountBaseWhere, selectedBrands);
 
   appendProductWhereAnd(filteredWhere, specAnd);
 
   const attributeFacetBaseWhere: Prisma.ProductWhereInput = { ...filteredWhere };
+  appendProductWhereAnd(attributeFacetBaseWhere, attributeRangeAnd);
   applySelectedBrands(attributeFacetBaseWhere, selectedBrands);
 
+  const attributeRangeFacetBaseWhere: Prisma.ProductWhereInput = { ...filteredWhere };
+  appendProductWhereAnd(attributeRangeFacetBaseWhere, attributeAnd);
+  applySelectedBrands(attributeRangeFacetBaseWhere, selectedBrands);
+
   appendProductWhereAnd(filteredWhere, attributeAnd);
+  appendProductWhereAnd(filteredWhere, attributeRangeAnd);
 
   const brandWhere: Prisma.ProductWhereInput = {
     ...filteredWhere,
@@ -438,6 +496,7 @@ export async function getCatalogPage(query: CatalogQuery) {
   const brands = await getCatalogBrands(brandWhere);
   const specFilterCounts = await getCatalogSpecFilterCounts(specFilterOptions, specCountBaseWhere);
   const attributeFilterGroups = await getCatalogAttributeFilterGroups(attributeFacetBaseWhere, query.attributeFilters);
+  const attributeRangeGroups = await getCatalogAttributeRangeGroups(attributeRangeFacetBaseWhere);
 
   return {
     category,
@@ -452,6 +511,7 @@ export async function getCatalogPage(query: CatalogQuery) {
     ),
     specFilterOptions: attachCatalogSpecFilterCounts(specFilterOptions, specFilterCounts, query.specFilters),
     attributeFilterGroups,
+    attributeRangeGroups,
   };
 }
 
