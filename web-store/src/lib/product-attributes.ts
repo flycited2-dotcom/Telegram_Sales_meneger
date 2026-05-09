@@ -48,6 +48,30 @@ function looksLikeEngineProduct(text: string): boolean {
   return /двигател|снегоубор|мотоблок|газонокос|генератор|культиватор|триммер|бензопил|мотопомп/i.test(text);
 }
 
+function looksLikeRefrigerationProduct(text: string): boolean {
+  return /холодильн|морозильн|морозильник|морозильная\s+камера|refrigerator|fridge|freezer/i.test(text);
+}
+
+function looksLikeCameraProduct(text: string): boolean {
+  return /видеокамер|камера|фотоаппарат|объектив|экшн-?камер|camera|lens/i.test(text);
+}
+
+function looksLikePaperProduct(text: string): boolean {
+  return /бумаг|картон|ватман|paper|cardboard/i.test(text);
+}
+
+function looksLikeTireProduct(text: string): boolean {
+  return /(^|[^а-яё])шин[аы]?|покрыш|автошин|tire|tyre/i.test(text);
+}
+
+function looksLikeDishProduct(text: string): boolean {
+  return /посуд|бокал|чашк|кружк|тарелк|стакан|кастрюл|сковород|dishes|glass/i.test(text);
+}
+
+function looksLikeApparelProduct(text: string): boolean {
+  return /одежд|обув|кроссов|ботин|сапог|куртк|плать|брюк|apparel|shoe|sneaker/i.test(text);
+}
+
 function extractElectricalProductType(text: string): { value: string; normalizedValue: string } | null {
   if (/кабел|провод|шнур|\bcable\b|\bwire\b|\bcord\b/i.test(text)) {
     return { value: "Кабель", normalizedValue: "cable" };
@@ -103,6 +127,40 @@ function extractPowerSource(text: string): { value: string; normalizedValue: str
   }
 
   return null;
+}
+
+function normalizeEnergyClass(value: string): string {
+  return value.toLocaleUpperCase("ru-RU").replace(/^А/, "A");
+}
+
+function extractEnergyClass(text: string, attributes: ExtractedProductAttribute[]) {
+  const energy = text.match(/(?:кл\.?\s*энер\.?|энергоэффективность|класс энергопотребления|класс)\s*:?\s*([aа][+]{0,3}|[bcdefgвсдефг])/i);
+  if (!energy) return;
+
+  const value = normalizeEnergyClass(energy[1]);
+  addAttribute(attributes, {
+    key: "energy_class",
+    label: "Класс энергопотребления",
+    value,
+    normalizedValue: normalizeToken(value),
+    numericValue: null,
+    unit: null,
+  });
+}
+
+function extractDimensionsCm(text: string, attributes: ExtractedProductAttribute[]) {
+  const dimensions = text.match(/(\d+(?:[.,]\d+)?)\s*[xх]\s*(\d+(?:[.,]\d+)?)\s*[xх]\s*(\d+(?:[.,]\d+)?)\s*см/i);
+  if (dimensions) {
+    addNumberAttribute(attributes, "width_cm", "Ширина", dimensions[1], "см");
+    addNumberAttribute(attributes, "height_cm", "Высота", dimensions[2], "см");
+    addNumberAttribute(attributes, "depth_cm", "Глубина", dimensions[3], "см");
+    return;
+  }
+
+  const depth = text.match(/глубин[аы]?\s*(\d+(?:[.,]\d+)?)\s*см/i);
+  if (depth) {
+    addNumberAttribute(attributes, "depth_cm", "Глубина", depth[1], "см");
+  }
 }
 
 function addAttribute(
@@ -209,26 +267,260 @@ function extractLaundryAttributes(text: string, attributes: ExtractedProductAttr
     addNumberAttribute(attributes, "spin_speed", "Скорость отжима", spinSpeed[1], "об/мин");
   }
 
-  const dimensions = text.match(/(\d+(?:[.,]\d+)?)\s*[xх]\s*(\d+(?:[.,]\d+)?)\s*[xх]\s*(\d+(?:[.,]\d+)?)\s*см/i);
-  if (dimensions) {
-    addNumberAttribute(attributes, "width_cm", "Ширина", dimensions[1], "см");
-    addNumberAttribute(attributes, "height_cm", "Высота", dimensions[2], "см");
-    addNumberAttribute(attributes, "depth_cm", "Глубина", dimensions[3], "см");
-  } else {
-    const depth = text.match(/глубин[аы]?\s*(\d+(?:[.,]\d+)?)\s*см/i);
-    if (depth) {
-      addNumberAttribute(attributes, "depth_cm", "Глубина", depth[1], "см");
+  extractDimensionsCm(text, attributes);
+
+  extractEnergyClass(text, attributes);
+}
+
+function extractRefrigerationAttributes(text: string, attributes: ExtractedProductAttribute[]) {
+  if (!looksLikeRefrigerationProduct(text)) return;
+
+  if (/no\s*frost|nofrost|ноу\s*фрост/i.test(text)) {
+    addAttribute(attributes, {
+      key: "fridge_no_frost",
+      label: "No Frost",
+      value: "Да",
+      normalizedValue: "yes",
+      numericValue: null,
+      unit: null,
+    });
+  }
+
+  const totalVolume =
+    text.match(/(?:общий\s+)?объ[её]м\D{0,12}(\d+(?:[.,]\d+)?)\s*л/i) ??
+    Array.from(text.matchAll(/(\d+(?:[.,]\d+)?)\s*л(?!\s*\/)/gi)).find((match) => {
+      const value = numberValue(match[1]);
+      return value !== null && value >= 40 && value <= 900;
+    });
+  if (totalVolume) {
+    addNumberAttribute(attributes, "total_volume_l", "Общий объем", totalVolume[1], "л");
+  }
+
+  const freezerVolume = text.match(/морозильн\D{0,24}(\d+(?:[.,]\d+)?)\s*л/i);
+  if (freezerVolume) {
+    addNumberAttribute(attributes, "freezer_volume_l", "Объем морозильной камеры", freezerVolume[1], "л");
+  }
+
+  if (/морозильн\D{0,30}(сниз|нижн)/i.test(text)) {
+    addAttribute(attributes, {
+      key: "freezer_position",
+      label: "Расположение морозильника",
+      value: "Снизу",
+      normalizedValue: "bottom",
+      numericValue: null,
+      unit: null,
+    });
+  } else if (/морозильн\D{0,30}(сверх|верхн)/i.test(text)) {
+    addAttribute(attributes, {
+      key: "freezer_position",
+      label: "Расположение морозильника",
+      value: "Сверху",
+      normalizedValue: "top",
+      numericValue: null,
+      unit: null,
+    });
+  } else if (/side[\s-]?by[\s-]?side/i.test(text)) {
+    addAttribute(attributes, {
+      key: "freezer_position",
+      label: "Расположение морозильника",
+      value: "Side-by-Side",
+      normalizedValue: "side_by_side",
+      numericValue: null,
+      unit: null,
+    });
+  }
+
+  if (/отдельностоящ/i.test(text)) {
+    addAttribute(attributes, {
+      key: "installation_type",
+      label: "Установка",
+      value: "Отдельностоящая",
+      normalizedValue: "freestanding",
+      numericValue: null,
+      unit: null,
+    });
+  } else if (/встраиваем/i.test(text)) {
+    addAttribute(attributes, {
+      key: "installation_type",
+      label: "Установка",
+      value: "Встраиваемая",
+      normalizedValue: "built_in",
+      numericValue: null,
+      unit: null,
+    });
+  }
+
+  if (/inverter|инвертор/i.test(text)) {
+    addAttribute(attributes, {
+      key: "inverter_motor",
+      label: "Инверторный двигатель",
+      value: "Да",
+      normalizedValue: "yes",
+      numericValue: null,
+      unit: null,
+    });
+  }
+
+  extractDimensionsCm(text, attributes);
+  extractEnergyClass(text, attributes);
+}
+
+function extractPaperAttributes(text: string, attributes: ExtractedProductAttribute[]) {
+  if (!looksLikePaperProduct(text)) return;
+
+  const format = text.match(/\b(a[0-6]|а[0-6])\b/i);
+  if (format) {
+    const value = format[1].toLocaleUpperCase("ru-RU").replace(/^А/, "A");
+    addAttribute(attributes, {
+      key: "paper_format",
+      label: "Формат",
+      value,
+      normalizedValue: value.toLocaleLowerCase("ru-RU"),
+      numericValue: null,
+      unit: null,
+    });
+  }
+
+  const density = text.match(/(\d+(?:[.,]\d+)?)\s*(?:г\s*\/\s*м2|г\s*\/\s*м²|gsm)\b/i);
+  if (density) {
+    addNumberAttribute(attributes, "paper_density", "Плотность", density[1], "г/м²");
+  }
+
+  const whiteness = text.match(/белизн\D{0,10}(\d+(?:[.,]\d+)?)\s*%/i);
+  if (whiteness) {
+    addNumberAttribute(attributes, "paper_whiteness", "Белизна", whiteness[1], "%");
+  }
+
+  const sheets = text.match(/(\d{2,5})\s*(?:лист(?:ов|а)?|л\.)/i);
+  if (sheets) {
+    addNumberAttribute(attributes, "sheet_count", "Количество листов", sheets[1], "листов");
+  }
+}
+
+function extractCameraAttributes(text: string, attributes: ExtractedProductAttribute[]) {
+  if (!looksLikeCameraProduct(text)) return;
+
+  const megapixels = text.match(/(\d+(?:[.,]\d+)?)\s*(?:мп|mp|мегапиксел)/i);
+  if (megapixels) {
+    const value = compactNumber(megapixels[1]);
+    addAttribute(attributes, {
+      key: "resolution",
+      label: "Разрешение",
+      value: `${value} Мп`,
+      normalizedValue: `${value}_mp`,
+      numericValue: numberValue(value),
+      unit: "Мп",
+    });
+  }
+
+  const lens = text.match(/(?:объектив|фокус\D{0,16})\D{0,8}(\d+(?:[.,]\d+)?)\s*мм/i);
+  if (lens) {
+    addNumberAttribute(attributes, "camera_lens_mm", "Фокусное расстояние", lens[1], "мм");
+  }
+
+  const ipRating = text.match(/\bIP\s?(\d{2})\b/i);
+  if (ipRating) {
+    addAttribute(attributes, {
+      key: "ip_rating",
+      label: "Степень защиты",
+      value: `IP${ipRating[1]}`,
+      normalizedValue: `ip${ipRating[1]}`,
+      numericValue: null,
+      unit: null,
+    });
+  }
+}
+
+function extractTireAttributes(text: string, attributes: ExtractedProductAttribute[]) {
+  if (!looksLikeTireProduct(text)) return;
+
+  const size = text.match(/(\d{3})\s*\/\s*(\d{2})\s*r\s*(\d{2})/i);
+  if (size) {
+    addNumberAttribute(attributes, "tire_width", "Ширина шины", size[1], "мм");
+    addNumberAttribute(attributes, "tire_profile", "Профиль шины", size[2], "%");
+    addNumberAttribute(attributes, "rim_diameter", "Диаметр диска", size[3], "R");
+  }
+
+  if (/зимн|winter/i.test(text)) {
+    addAttribute(attributes, {
+      key: "tire_season",
+      label: "Сезон",
+      value: "Зимние",
+      normalizedValue: "winter",
+      numericValue: null,
+      unit: null,
+    });
+  } else if (/летн|summer/i.test(text)) {
+    addAttribute(attributes, {
+      key: "tire_season",
+      label: "Сезон",
+      value: "Летние",
+      normalizedValue: "summer",
+      numericValue: null,
+      unit: null,
+    });
+  } else if (/всесезон|all[\s-]?season/i.test(text)) {
+    addAttribute(attributes, {
+      key: "tire_season",
+      label: "Сезон",
+      value: "Всесезонные",
+      normalizedValue: "all_season",
+      numericValue: null,
+      unit: null,
+    });
+  }
+}
+
+function extractDishAndApparelAttributes(text: string, attributes: ExtractedProductAttribute[]) {
+  if (looksLikeDishProduct(text)) {
+    const volume = text.match(/(\d+(?:[.,]\d+)?)\s*(?:л|l)(?=$|[\s,;])/i);
+    if (volume) {
+      addNumberAttribute(attributes, "volume_l", "Объем", volume[1], "л");
+    }
+
+    const diameter = text.match(/(?:диаметр|d)\D{0,6}(\d+(?:[.,]\d+)?)\s*см/i);
+    if (diameter) {
+      addNumberAttribute(attributes, "diameter_cm", "Диаметр", diameter[1], "см");
+    }
+
+    const pieces = text.match(/(\d{1,3})\s*(?:шт|предмет|персон|пар)/i);
+    if (pieces) {
+      addNumberAttribute(attributes, "pieces_count", "Количество предметов", pieces[1], "шт.");
     }
   }
 
-  const energy = text.match(/(?:кл\.?\s*энер\.?|энергоэффективность|класс энергопотребления)\s*:?\s*([aа][+]{0,3}|[bcdefgвсдефг])/i);
-  if (energy) {
-    const value = energy[1].toLocaleUpperCase("ru-RU").replace(/^А/, "A");
+  if (looksLikeApparelProduct(text)) {
+    const size = text.match(/(?:размер|р-р|р\.)\s*([0-9]{2,3}(?:[-/][0-9]{2,3})?|[xsml]{1,4})\b/i);
+    if (size) {
+      const value = size[1].toLocaleUpperCase("ru-RU");
+      addAttribute(attributes, {
+        key: "size",
+        label: "Размер",
+        value,
+        normalizedValue: normalizeToken(value),
+        numericValue: numberValue(value),
+        unit: null,
+      });
+    }
+  }
+
+  const materials: Array<{ pattern: RegExp; value: string; normalizedValue: string }> = [
+    { pattern: /нержавеющ(?:ая|ей)?\s+сталь|нерж\.?\s*сталь/i, value: "Нержавеющая сталь", normalizedValue: "stainless_steel" },
+    { pattern: /стекл(?:о|янн)/i, value: "Стекло", normalizedValue: "glass" },
+    { pattern: /фарфор/i, value: "Фарфор", normalizedValue: "porcelain" },
+    { pattern: /керамик/i, value: "Керамика", normalizedValue: "ceramic" },
+    { pattern: /пластик/i, value: "Пластик", normalizedValue: "plastic" },
+    { pattern: /дерев|массив/i, value: "Дерево", normalizedValue: "wood" },
+    { pattern: /металл/i, value: "Металл", normalizedValue: "metal" },
+    { pattern: /кожа|экокожа/i, value: "Кожа", normalizedValue: "leather" },
+  ];
+  const material = materials.find((item) => item.pattern.test(text));
+  if (material) {
     addAttribute(attributes, {
-      key: "energy_class",
-      label: "Класс энергопотребления",
-      value,
-      normalizedValue: normalizeToken(value),
+      key: "material",
+      label: "Материал",
+      value: material.value,
+      normalizedValue: material.normalizedValue,
       numericValue: null,
       unit: null,
     });
@@ -302,6 +594,11 @@ export function extractProductNameAttributes(name: string | null | undefined): E
   }
 
   extractLaundryAttributes(text, attributes);
+  extractRefrigerationAttributes(text, attributes);
+  extractPaperAttributes(text, attributes);
+  extractCameraAttributes(text, attributes);
+  extractTireAttributes(text, attributes);
+  extractDishAndApparelAttributes(text, attributes);
 
   const electricalProductType = extractElectricalProductType(text);
   if (electricalProductType) {

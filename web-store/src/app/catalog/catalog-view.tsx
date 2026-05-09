@@ -10,8 +10,9 @@ import {
   type CatalogAttributeRangeFilter,
   type CatalogAttributeRangeGroup,
 } from "@/lib/catalog-attribute-filters";
+import { buildCatalogBreadcrumbItems } from "@/lib/catalog-breadcrumbs";
 import type { CatalogBrandFilterOption } from "@/lib/catalog-brand-filters";
-import type { CategoryTreeItem } from "@/lib/catalog-tree";
+import type { CategoryTreeItem, FlatCategory } from "@/lib/catalog-tree";
 import type { CatalogSort } from "@/lib/catalog-query";
 import { getCatalogSpecFilterLabel, type CatalogSpecFilterOption, type CatalogSpecFilterValue } from "@/lib/catalog-spec-filters";
 import { countActiveCatalogFilters } from "@/lib/catalog-ui";
@@ -650,6 +651,7 @@ function ActiveFilterChips({
 
 export function CatalogView({
   title,
+  categoryPath = [],
   products,
   total,
   page,
@@ -674,6 +676,7 @@ export function CatalogView({
   error,
 }: {
   title: string;
+  categoryPath?: FlatCategory[];
   products: Array<Product & { images?: ProductImage[] }>;
   total: number;
   page: number;
@@ -725,10 +728,25 @@ export function CatalogView({
   const pageHref = (nextPage: number) => {
     return catalogHref(basePath, { ...state, page: nextPage });
   };
+  const breadcrumbs = buildCatalogBreadcrumbItems(categoryPath);
 
   return (
     <div className="mx-auto grid max-w-[1560px] gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[380px_minmax(0,1fr)] lg:px-8">
       <section className="min-w-0 lg:order-2">
+        <nav className="mb-4 flex flex-wrap items-center gap-2 text-sm text-zinc-500" aria-label="Хлебные крошки">
+          {breadcrumbs.map((item, index) => (
+            <span key={`${item.href ?? item.label}-${index}`} className="inline-flex min-w-0 items-center gap-2">
+              {index > 0 ? <span className="text-zinc-300">/</span> : null}
+              {item.href && index < breadcrumbs.length - 1 ? (
+                <Link href={item.href} className="truncate font-semibold text-zinc-700 hover:text-teal-800">
+                  {item.label}
+                </Link>
+              ) : (
+                <span className="truncate font-semibold text-zinc-950">{item.label}</span>
+              )}
+            </span>
+          ))}
+        </nav>
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">Каталог</p>

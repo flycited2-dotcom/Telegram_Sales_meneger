@@ -67,6 +67,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   return (
     <CatalogView
       title={data.category.name}
+      categoryPath={data.categoryPath}
       products={data.products}
       total={data.total}
       page={data.page}

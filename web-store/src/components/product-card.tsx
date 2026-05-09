@@ -1,4 +1,4 @@
-import type { Product, ProductImage } from "@prisma/client";
+import type { Product, ProductAttribute, ProductImage } from "@prisma/client";
 import Link from "next/link";
 import { AddToCartButton } from "@/components/add-to-cart-button";
 import { ProductImageFallback } from "@/components/product-image-fallback";
@@ -13,6 +13,7 @@ import { absoluteStorefrontUrl } from "@/lib/seo-jsonld";
 
 type ProductCardProduct = Product & {
   images?: ProductImage[];
+  attributes?: ProductAttribute[];
 };
 
 export function ProductCard({ product }: { product: ProductCardProduct }) {
@@ -30,6 +31,7 @@ export function ProductCard({ product }: { product: ProductCardProduct }) {
     weight: product.weight,
     volume: product.volume,
     multiplicity: product.multiplicity,
+    attributes: product.attributes,
   });
 
   return (

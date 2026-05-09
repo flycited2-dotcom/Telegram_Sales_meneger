@@ -37,7 +37,7 @@ export type ProductDescriptionInput = {
   multiplicity?: number | null;
 };
 
-export type ProductCardHighlightInput = Pick<ProductFactInput, "title" | "part" | "warranty" | "weight" | "volume" | "multiplicity">;
+export type ProductCardHighlightInput = Pick<ProductFactInput, "title" | "part" | "warranty" | "weight" | "volume" | "multiplicity" | "attributes">;
 
 export function warrantyLabel(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
@@ -93,6 +93,10 @@ const productAttributeFactOrder = [
   "height_cm",
   "depth_cm",
   "energy_class",
+  "fridge_no_frost",
+  "total_volume_l",
+  "freezer_volume_l",
+  "freezer_position",
   "daily_capacity",
   "tank_volume",
   "screen_diagonal",
@@ -101,6 +105,24 @@ const productAttributeFactOrder = [
   "ram",
   "storage_type",
   "storage_capacity",
+  "processor_family",
+  "processor_model",
+  "interface",
+  "camera_lens_mm",
+  "paper_format",
+  "paper_density",
+  "paper_whiteness",
+  "sheet_count",
+  "tire_width",
+  "tire_profile",
+  "rim_diameter",
+  "tire_season",
+  "volume_l",
+  "diameter_cm",
+  "pieces_count",
+  "material",
+  "size",
+  "color",
 ];
 
 const productAttributeFactRank = new Map(productAttributeFactOrder.map((key, index) => [key, index]));
@@ -144,8 +166,9 @@ export function buildProductFacts(product: ProductFactInput): ProductFact[] {
 }
 
 export function buildProductCardHighlights(product: ProductCardHighlightInput): string[] {
+  const attributeHighlights = buildAttributeFacts(product.attributes).map((spec) => spec.value);
   const highlights = [
-    ...extractProductNameSpecs(product.title).map((spec) => spec.value),
+    ...(attributeHighlights.length ? attributeHighlights : extractProductNameSpecs(product.title).map((spec) => spec.value)),
     warrantyLabel(product.warranty) ? `Гарантия ${warrantyLabel(product.warranty)}` : null,
     product.weight ? `${trimNumber(product.weight, 3)} кг` : null,
     product.multiplicity && product.multiplicity > 1 ? `Кратно ${product.multiplicity} шт.` : null,

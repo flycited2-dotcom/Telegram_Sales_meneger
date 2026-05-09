@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
+import { listCatalogFilterLandings } from "@/lib/catalog-filter-landings";
 import { normalRetailNameWhere } from "@/lib/retail-products";
 import { storefront } from "@/lib/storefront";
 
@@ -71,6 +72,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "yearly",
       priority: 0.3,
     },
+    ...listCatalogFilterLandings().map((landing) => ({
+      url: `${storefront.siteUrl}/podborki/${landing.slug}`,
+      lastModified: now,
+      changeFrequency: "weekly" as const,
+      priority: 0.7,
+    })),
   ];
 
   if (!process.env.DATABASE_URL) {

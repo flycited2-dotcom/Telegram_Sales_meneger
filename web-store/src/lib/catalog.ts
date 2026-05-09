@@ -190,6 +190,14 @@ export const getHomeSnapshot = unstable_cache(async () => {
         },
         take: 1,
       },
+      attributes: {
+        where: {
+          source: {
+            in: ["manual", "name"],
+          },
+        },
+        orderBy: [{ key: "asc" }, { value: "asc" }],
+      },
     },
     orderBy: [{ hasImage: "desc" }, { updatedAt: "desc" }],
     take: 8,
@@ -400,10 +408,12 @@ export async function getCatalogPage(query: CatalogQuery) {
   };
 
   let category: FlatCategory | null = null;
+  let categoryPath: FlatCategory[] = [];
   if (query.categorySlug) {
     category = allCategories.find((item) => item.slug === query.categorySlug) ?? null;
 
     if (category) {
+      categoryPath = buildCategoryPath(allCategories, category.id);
       const categoryIds = collectDescendantCategoryIds(allCategories, category.id).filter((id) => !excludedCategoryIdSet.has(id));
       baseWhere.categoryId = {
         in: categoryIds.length ? categoryIds : ["__empty_category__"],
@@ -504,6 +514,14 @@ export async function getCatalogPage(query: CatalogQuery) {
         },
         take: 1,
       },
+      attributes: {
+        where: {
+          source: {
+            in: ["manual", "name"],
+          },
+        },
+        orderBy: [{ key: "asc" }, { value: "asc" }],
+      },
     },
     orderBy: catalogProductOrderBy(query.sort),
     skip: (page - 1) * PRODUCTS_PER_PAGE,
@@ -518,6 +536,7 @@ export async function getCatalogPage(query: CatalogQuery) {
 
   return {
     category,
+    categoryPath,
     products,
     total,
     page,
@@ -569,6 +588,14 @@ export async function getRelatedProducts({
           priority: "asc",
         },
         take: 1,
+      },
+      attributes: {
+        where: {
+          source: {
+            in: ["manual", "name"],
+          },
+        },
+        orderBy: [{ key: "asc" }, { value: "asc" }],
       },
     },
     orderBy: [{ hasImage: "desc" }, { updatedAt: "desc" }],

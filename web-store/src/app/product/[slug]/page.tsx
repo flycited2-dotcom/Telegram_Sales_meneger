@@ -8,6 +8,7 @@ import { ProductGallery } from "@/components/product-gallery";
 import { QuickOrderForm } from "@/components/quick-order-form";
 import { StockBadge } from "@/components/stock-badge";
 import { decimalToNumber, getCategoryPathById, getProductBySlug, getRelatedProducts } from "@/lib/catalog";
+import { buildCatalogBreadcrumbItems } from "@/lib/catalog-breadcrumbs";
 import { publicFulfillmentText } from "@/lib/fulfillment";
 import { formatRub } from "@/lib/format";
 import { buildProductFacts, productDescriptionText } from "@/lib/product-display";
@@ -70,6 +71,9 @@ export default async function ProductPage({ params }: Props) {
   const fulfillment = publicFulfillmentText({ isAvailable: product.isAvailable && Boolean(price) });
   const categoryName = product.category?.name ?? null;
   const categoryPath = await getCategoryPathById(product.categoryId);
+  const breadcrumbs = buildCatalogBreadcrumbItems(categoryPath, name);
+  const parentCategory = categoryPath.at(-1);
+  const backHref = parentCategory ? `/catalog/${parentCategory.slug}` : "/catalog";
   const galleryImages = product.images.flatMap((image) => {
     const src = productImageSrc(image);
     return src ? [{ id: image.id, src, alt: name }] : [];
@@ -119,20 +123,26 @@ export default async function ProductPage({ params }: Props) {
     <div className="mx-auto max-w-7xl px-4 pb-40 pt-8 sm:px-6 lg:px-8 lg:pb-8">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
-      <nav className="flex flex-wrap items-center gap-2 text-sm text-zinc-500" aria-label="Навигация по каталогу">
-        <Link href="/catalog" className="inline-flex items-center gap-1 font-semibold text-zinc-700 hover:text-teal-800">
+      <div className="grid gap-3">
+        <Link href={backHref} className="inline-flex w-fit items-center gap-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 hover:border-teal-200 hover:text-teal-800">
           <ArrowLeft className="size-4" aria-hidden />
-          Каталог
+          {parentCategory ? `Вернуться в ${parentCategory.name}` : "Вернуться в каталог"}
         </Link>
-        {categoryPath.map((category) => (
-          <span key={category.id} className="inline-flex items-center gap-2">
-            <span className="text-zinc-300">/</span>
-            <Link href={`/catalog/${category.slug}`} className="font-semibold text-zinc-700 hover:text-teal-800">
-              {category.name}
-            </Link>
-          </span>
-        ))}
-      </nav>
+        <nav className="flex flex-wrap items-center gap-2 text-sm text-zinc-500" aria-label="Хлебные крошки">
+          {breadcrumbs.map((item, index) => (
+            <span key={`${item.href ?? item.label}-${index}`} className="inline-flex min-w-0 items-center gap-2">
+              {index > 0 ? <span className="text-zinc-300">/</span> : null}
+              {item.href && index < breadcrumbs.length - 1 ? (
+                <Link href={item.href} className="truncate font-semibold text-zinc-700 hover:text-teal-800">
+                  {item.label}
+                </Link>
+              ) : (
+                <span className="line-clamp-1 font-semibold text-zinc-950">{item.label}</span>
+              )}
+            </span>
+          ))}
+        </nav>
+      </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(360px,0.75fr)_360px]">
         <ProductGallery images={galleryImages} name={name} />

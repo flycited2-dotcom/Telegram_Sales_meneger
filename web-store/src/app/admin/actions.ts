@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { loginAdmin, logoutAdmin, requireAdmin } from "@/lib/admin-auth";
+import { parseManualProductAttributeLines } from "@/lib/admin-product-attributes";
 import { prisma } from "@/lib/db";
 import { syncItpCategories } from "@/lib/itp/categories";
 import { syncItpImages } from "@/lib/itp/images";
@@ -73,21 +74,53 @@ export async function updateProductAction(formData: FormData) {
   await requireAdmin();
   const id = String(formData.get("id"));
   const manualPriceRaw = String(formData.get("manualPrice") ?? "").trim();
+  const manualAttributes = parseManualProductAttributeLines(String(formData.get("manualAttributes") ?? ""));
 
-  await prisma.product.update({
-    where: { id },
-    data: {
-      isVisible: formData.get("isVisible") === "on",
-      name: String(formData.get("name") ?? "").trim() || null,
-      seoTitle: String(formData.get("seoTitle") ?? "").trim() || null,
-      seoDescription: String(formData.get("seoDescription") ?? "").trim() || null,
-      description: String(formData.get("description") ?? "").trim() || null,
-      manualPrice: manualPriceRaw ? new Prisma.Decimal(manualPriceRaw) : null,
-    },
+  const product = await prisma.$transaction(async (tx) => {
+    const updated = await tx.product.update({
+      where: { id },
+      data: {
+        isVisible: formData.get("isVisible") === "on",
+        name: String(formData.get("name") ?? "").trim() || null,
+        seoTitle: String(formData.get("seoTitle") ?? "").trim() || null,
+        seoDescription: String(formData.get("seoDescription") ?? "").trim() || null,
+        description: String(formData.get("description") ?? "").trim() || null,
+        manualPrice: manualPriceRaw ? new Prisma.Decimal(manualPriceRaw) : null,
+      },
+      select: {
+        slug: true,
+      },
+    });
+
+    await tx.productAttribute.deleteMany({
+      where: {
+        productId: id,
+        source: "manual",
+      },
+    });
+
+    if (manualAttributes.length) {
+      await tx.productAttribute.createMany({
+        data: manualAttributes.map((attribute) => ({
+          productId: id,
+          key: attribute.key,
+          label: attribute.label,
+          value: attribute.value,
+          normalizedValue: attribute.normalizedValue,
+          numericValue: attribute.numericValue,
+          unit: attribute.unit,
+          source: "manual",
+        })),
+      });
+    }
+
+    return updated;
   });
 
   revalidatePath("/admin/products");
   revalidatePath(`/admin/products/${id}`);
+  revalidatePath(`/product/${product.slug}`);
+  revalidatePath("/catalog");
 }
 
 export async function toggleCategoryAction(formData: FormData) {

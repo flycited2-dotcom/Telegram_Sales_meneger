@@ -82,6 +82,20 @@ describe("buildProductFacts", () => {
 });
 
 describe("buildProductCardHighlights", () => {
+  it("uses saved product attributes before title fallback specs in catalog cards", () => {
+    expect(
+      buildProductCardHighlights({
+        title: "Сушильная машина Bosch WTN86202ME",
+        warranty: "12",
+        attributes: [
+          { key: "drying_type", label: "Тип сушки", value: "Конденсационная" },
+          { key: "load_capacity", label: "Загрузка", value: "8 кг" },
+          { key: "depth_cm", label: "Глубина", value: "60 см" },
+        ],
+      }),
+    ).toEqual(["8 кг", "Конденсационная", "60 см"]);
+  });
+
   it("prioritizes extracted specs in catalog cards", () => {
     expect(
       buildProductCardHighlights({

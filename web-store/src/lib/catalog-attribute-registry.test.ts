@@ -44,4 +44,31 @@ describe("catalog attribute registry", () => {
     expect(keys).not.toContain("load_capacity");
     expect(keys).not.toContain("drying_type");
   });
+
+  it("detects category families from transliterated slugs without short-token collisions", () => {
+    const cableKeys = getCatalogAttributeKeysForCategory({
+      categorySlug: "kabeli-i-provoda-dlya-stroitelstva-i-remonta-10560",
+    });
+    const dryerKeys = getCatalogAttributeKeysForCategory({ categorySlug: "sushilnye-mashiny-18029" });
+
+    expect(cableKeys).toEqual(expect.arrayContaining(["electrical_product_type", "cable_section", "cable_cores"]));
+    expect(cableKeys).not.toContain("screen_diagonal");
+    expect(dryerKeys).toEqual(expect.arrayContaining(["load_capacity", "drying_type", "program_count"]));
+    expect(dryerKeys).not.toContain("power_hp");
+  });
+
+  it("returns refrigerator, camera, paper and tire specific filters", () => {
+    expect(getCatalogAttributeKeysForCategory({ categoryName: "Холодильники", categorySlug: "holodilniki" })).toEqual(
+      expect.arrayContaining(["fridge_no_frost", "total_volume_l", "freezer_position", "energy_class", "color"]),
+    );
+    expect(getCatalogAttributeKeysForCategory({ categoryName: "Видеокамеры", categorySlug: "videokamery" })).toEqual(
+      expect.arrayContaining(["camera_lens_mm", "resolution", "interface", "ip_rating"]),
+    );
+    expect(getCatalogAttributeKeysForCategory({ categoryName: "Бумага офисная", categorySlug: "bumaga-ofisnaya" })).toEqual(
+      expect.arrayContaining(["paper_format", "paper_density", "paper_whiteness", "sheet_count"]),
+    );
+    expect(getCatalogAttributeKeysForCategory({ categoryName: "Автомобильные шины", categorySlug: "avtomobilnye-shiny" })).toEqual(
+      expect.arrayContaining(["tire_width", "tire_profile", "rim_diameter", "tire_season"]),
+    );
+  });
 });

@@ -52,4 +52,84 @@ describe("buildProductAttributeRows", () => {
       }).map((row) => row.key),
     ).toEqual(["ram", "storage_type", "storage_capacity"]);
   });
+
+  it("extracts laundry parameters for dryer filters", () => {
+    expect(
+      buildProductAttributeRows({
+        productId: "dryer-1",
+        name: "Сушильная машина Bosch WTN86202ME серый, 8 кг, сушка - конденсационная, глубина 60 см, класс энергопотребления A++",
+        supplierName: null,
+      }).map((row) => [row.key, row.normalizedValue]),
+    ).toEqual([
+      ["load_capacity", "8"],
+      ["drying_type", "condensation"],
+      ["depth_cm", "60"],
+      ["energy_class", "a"],
+      ["color", "gray"],
+    ]);
+  });
+
+  it("extracts refrigerator parameters for category filters", () => {
+    expect(
+      buildProductAttributeRows({
+        productId: "fridge-1",
+        name: "Холодильник ATLANT No Frost белый, общий объем 320 л, морозильная камера снизу, 60x185x63 см, класс A+",
+        supplierName: null,
+      }).map((row) => [row.key, row.normalizedValue]),
+    ).toEqual([
+      ["fridge_no_frost", "yes"],
+      ["total_volume_l", "320"],
+      ["freezer_position", "bottom"],
+      ["width_cm", "60"],
+      ["height_cm", "185"],
+      ["depth_cm", "63"],
+      ["energy_class", "a"],
+      ["color", "white"],
+    ]);
+  });
+
+  it("extracts paper parameters for office supply filters", () => {
+    expect(
+      buildProductAttributeRows({
+        productId: "paper-1",
+        name: "Бумага офисная SvetoCopy A4, 80 г/м2, белизна 146%, 500 листов",
+        supplierName: null,
+      }).map((row) => [row.key, row.normalizedValue]),
+    ).toEqual([
+      ["paper_format", "a4"],
+      ["paper_density", "80"],
+      ["paper_whiteness", "146"],
+      ["sheet_count", "500"],
+    ]);
+  });
+
+  it("extracts camera parameters for photo and video filters", () => {
+    expect(
+      buildProductAttributeRows({
+        productId: "camera-1",
+        name: "IP видеокамера 4 Мп, объектив 2.8 мм, Wi-Fi, IP66",
+        supplierName: null,
+      }).map((row) => [row.key, row.normalizedValue]),
+    ).toEqual([
+      ["resolution", "4_mp"],
+      ["camera_lens_mm", "2.8"],
+      ["ip_rating", "ip66"],
+      ["interface", "wi_fi"],
+    ]);
+  });
+
+  it("extracts tire parameters for auto filters", () => {
+    expect(
+      buildProductAttributeRows({
+        productId: "tire-1",
+        name: "Шина зимняя Nokian 205/55 R16",
+        supplierName: null,
+      }).map((row) => [row.key, row.normalizedValue]),
+    ).toEqual([
+      ["tire_width", "205"],
+      ["tire_profile", "55"],
+      ["rim_diameter", "16"],
+      ["tire_season", "winter"],
+    ]);
+  });
 });

@@ -13,7 +13,14 @@ type Props = {
 export default async function AdminProductEditPage({ params }: Props) {
   await requireAdmin();
   const { id } = await params;
-  const product = await prisma.product.findUnique({ where: { id } });
+  const product = await prisma.product.findUnique({
+    where: { id },
+    include: {
+      attributes: {
+        orderBy: [{ source: "asc" }, { key: "asc" }, { value: "asc" }],
+      },
+    },
+  });
 
   if (!product) notFound();
 
@@ -45,6 +52,35 @@ export default async function AdminProductEditPage({ params }: Props) {
           Описание
           <textarea name="description" defaultValue={product.description ?? ""} rows={7} className="rounded-lg border border-zinc-200 px-3 py-2" />
         </label>
+        <label className="grid gap-2 text-sm font-medium text-zinc-700">
+          Ручные характеристики для фильтров
+          <textarea
+            name="manualAttributes"
+            defaultValue={product.attributes
+              .filter((attribute) => attribute.source === "manual")
+              .map((attribute) => `${attribute.label}: ${attribute.value}`)
+              .join("\n")}
+            rows={8}
+            placeholder={["Тип сушки: Тепловой насос", "Загрузка: 9 кг", "No Frost: Да", "Цвет: Белый"].join("\n")}
+            className="rounded-lg border border-zinc-200 px-3 py-2"
+          />
+          <span className="text-xs leading-5 text-zinc-500">
+            Одна строка - одна характеристика. Можно писать по-русски: `Тип сушки: Тепловой насос`, `No Frost: Да`, `Цвет: Белый`.
+          </span>
+        </label>
+        {product.attributes.length ? (
+          <div className="rounded-lg border border-zinc-200 bg-stone-50 p-4">
+            <p className="text-sm font-bold text-zinc-950">Текущие характеристики</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {product.attributes.map((attribute) => (
+                <span key={`${attribute.source}-${attribute.key}-${attribute.normalizedValue}`} className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-zinc-700 ring-1 ring-zinc-200">
+                  {attribute.label}: {attribute.value}
+                  {attribute.source === "manual" ? " · вручную" : ""}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
         <button className="h-11 rounded-lg bg-teal-700 text-sm font-bold text-white hover:bg-teal-800">Сохранить</button>
       </form>
     </AdminShell>
