@@ -132,4 +132,23 @@ describe("buildProductAttributeRows", () => {
       ["tire_season", "winter"],
     ]);
   });
+
+  it("extracts vacuum-specific parameters without electrical fallback noise", () => {
+    expect(
+      buildProductAttributeRows({
+        productId: "vacuum-1",
+        name: "Вертикальный пылесос Samsung аккумуляторный, контейнер, мощность 600 Вт, мощность всасывания 200 Вт, HEPA, сухая уборка, 18 В",
+        supplierName: null,
+      }).map((row) => [row.key, row.normalizedValue]),
+    ).toEqual([
+      ["vacuum_type", "vertical"],
+      ["dust_collector", "container"],
+      ["suction_power_w", "200"],
+      ["cleaning_type", "dry"],
+      ["filter_type", "hepa"],
+      ["power_source", "battery"],
+      ["power_w", "600"],
+      ["battery_voltage", "18"],
+    ]);
+  });
 });

@@ -72,6 +72,10 @@ function looksLikeApparelProduct(text: string): boolean {
   return /одежд|обув|кроссов|ботин|сапог|куртк|плать|брюк|apparel|shoe|sneaker/i.test(text);
 }
 
+function looksLikeVacuumProduct(text: string): boolean {
+  return /пылесос|пылеудален|vacuum/i.test(text);
+}
+
 function extractElectricalProductType(text: string): { value: string; normalizedValue: string } | null {
   if (/кабел|провод|шнур|\bcable\b|\bwire\b|\bcord\b/i.test(text)) {
     return { value: "Кабель", normalizedValue: "cable" };
@@ -186,6 +190,25 @@ function addNumberAttribute(
     normalizedValue: normalized,
     numericValue: numberValue(normalized),
     unit,
+  });
+}
+
+function addPowerWAttribute(text: string, attributes: ExtractedProductAttribute[]) {
+  const power = text.match(/(\d+(?:[.,]\d+)?)\s*(квт|kw|вт|w)(?=$|[\s,;.])/i);
+  if (!power) return;
+
+  const sourceValue = numberValue(power[1]);
+  const unit = power[2].toLocaleLowerCase("ru-RU");
+  const numericWatts = sourceValue === null ? null : unit === "квт" || unit === "kw" ? sourceValue * 1000 : sourceValue;
+  const displayUnit = unit === "квт" || unit === "kw" ? "кВт" : "Вт";
+  const displayValue = compactNumber(power[1]);
+  addAttribute(attributes, {
+    key: "power_w",
+    label: "Мощность",
+    value: `${displayValue} ${displayUnit}`,
+    normalizedValue: numericWatts === null ? displayValue : compactNumber(String(numericWatts)),
+    numericValue: numericWatts,
+    unit: "Вт",
   });
 }
 
@@ -527,6 +550,104 @@ function extractDishAndApparelAttributes(text: string, attributes: ExtractedProd
   }
 }
 
+function extractVacuumAttributes(text: string, attributes: ExtractedProductAttribute[]) {
+  if (!looksLikeVacuumProduct(text)) return;
+
+  if (/робот/i.test(text)) {
+    addAttribute(attributes, {
+      key: "vacuum_type",
+      label: "Тип пылесоса",
+      value: "Робот-пылесос",
+      normalizedValue: "robot",
+      numericValue: null,
+      unit: null,
+    });
+  } else if (/вертикальн/i.test(text)) {
+    addAttribute(attributes, {
+      key: "vacuum_type",
+      label: "Тип пылесоса",
+      value: "Вертикальный",
+      normalizedValue: "vertical",
+      numericValue: null,
+      unit: null,
+    });
+  } else if (/профессиональн|строительн|промышленн/i.test(text)) {
+    addAttribute(attributes, {
+      key: "vacuum_type",
+      label: "Тип пылесоса",
+      value: "Профессиональный",
+      normalizedValue: "professional",
+      numericValue: null,
+      unit: null,
+    });
+  }
+
+  if (/контейнер|циклон/i.test(text)) {
+    addAttribute(attributes, {
+      key: "dust_collector",
+      label: "Пылесборник",
+      value: "Контейнер",
+      normalizedValue: "container",
+      numericValue: null,
+      unit: null,
+    });
+  } else if (/мешок|мешк/i.test(text)) {
+    addAttribute(attributes, {
+      key: "dust_collector",
+      label: "Пылесборник",
+      value: "Мешок",
+      normalizedValue: "bag",
+      numericValue: null,
+      unit: null,
+    });
+  } else if (/аквафильтр|водян/i.test(text)) {
+    addAttribute(attributes, {
+      key: "dust_collector",
+      label: "Пылесборник",
+      value: "Аквафильтр",
+      normalizedValue: "aquafilter",
+      numericValue: null,
+      unit: null,
+    });
+  }
+
+  const suction = text.match(/(?:мощность\s+всасывания|всасывани[ея])\D{0,16}(\d+(?:[.,]\d+)?)\s*(?:вт|w)(?=$|[\s,;.])/i);
+  if (suction) {
+    addNumberAttribute(attributes, "suction_power_w", "Мощность всасывания", suction[1], "Вт");
+  }
+
+  if (/моющ|влажн/i.test(text)) {
+    addAttribute(attributes, {
+      key: "cleaning_type",
+      label: "Тип уборки",
+      value: "Влажная уборка",
+      normalizedValue: "wet",
+      numericValue: null,
+      unit: null,
+    });
+  } else if (/сух/i.test(text)) {
+    addAttribute(attributes, {
+      key: "cleaning_type",
+      label: "Тип уборки",
+      value: "Сухая уборка",
+      normalizedValue: "dry",
+      numericValue: null,
+      unit: null,
+    });
+  }
+
+  if (/hepa/i.test(text)) {
+    addAttribute(attributes, {
+      key: "filter_type",
+      label: "Фильтр",
+      value: "HEPA",
+      normalizedValue: "hepa",
+      numericValue: null,
+      unit: null,
+    });
+  }
+}
+
 export function extractProductNameAttributes(name: string | null | undefined): ExtractedProductAttribute[] {
   const text = name?.trim();
   if (!text) return [];
@@ -599,6 +720,7 @@ export function extractProductNameAttributes(name: string | null | undefined): E
   extractCameraAttributes(text, attributes);
   extractTireAttributes(text, attributes);
   extractDishAndApparelAttributes(text, attributes);
+  extractVacuumAttributes(text, attributes);
 
   const electricalProductType = extractElectricalProductType(text);
   if (electricalProductType) {
@@ -645,22 +767,7 @@ export function extractProductNameAttributes(name: string | null | undefined): E
       addNumberAttribute(attributes, "current_amp", "Сила тока", current[1], "А");
     }
 
-    const power = text.match(/(\d+(?:[.,]\d+)?)\s*(квт|kw|вт|w)\b/i);
-    if (power) {
-      const sourceValue = numberValue(power[1]);
-      const unit = power[2].toLocaleLowerCase("ru-RU");
-      const numericWatts = sourceValue === null ? null : unit === "квт" || unit === "kw" ? sourceValue * 1000 : sourceValue;
-      const displayUnit = unit === "квт" || unit === "kw" ? "кВт" : "Вт";
-      const displayValue = compactNumber(power[1]);
-      addAttribute(attributes, {
-        key: "power_w",
-        label: "Мощность",
-        value: `${displayValue} ${displayUnit}`,
-        normalizedValue: numericWatts === null ? displayValue : compactNumber(String(numericWatts)),
-        numericValue: numericWatts,
-        unit: "Вт",
-      });
-    }
+    addPowerWAttribute(text, attributes);
 
     const ipRating = text.match(/\bIP\s?(\d{2})\b/i);
     if (ipRating) {
@@ -698,6 +805,8 @@ export function extractProductNameAttributes(name: string | null | undefined): E
       unit: null,
     });
   }
+
+  addPowerWAttribute(text, attributes);
 
   const powerHp =
     text.match(/(\d+(?:[.,]\d+)?)\s*(?:л\.?\s*с\.?|л[,;]\s*с\.?)/i) ??

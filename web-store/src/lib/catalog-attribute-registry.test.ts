@@ -57,6 +57,21 @@ describe("catalog attribute registry", () => {
     expect(dryerKeys).not.toContain("power_hp");
   });
 
+  it("does not leak electrical or garden filters into small appliances and vacuums", () => {
+    const applianceKeys = getCatalogAttributeKeysForCategory({ categorySlug: "melkaya-tehnika-dlya-doma-9907" });
+    const vacuumKeys = getCatalogAttributeKeysForCategory({ categorySlug: "pylesosy-15454" });
+
+    expect(applianceKeys).toEqual(expect.arrayContaining(["power_w", "voltage", "volume_l", "color"]));
+    expect(applianceKeys).not.toContain("electrical_product_type");
+    expect(applianceKeys).not.toContain("cable_section");
+    expect(applianceKeys).not.toContain("power_hp");
+
+    expect(vacuumKeys).toEqual(expect.arrayContaining(["vacuum_type", "dust_collector", "suction_power_w", "power_w", "battery_voltage"]));
+    expect(vacuumKeys).not.toContain("electrical_product_type");
+    expect(vacuumKeys).not.toContain("cable_section");
+    expect(vacuumKeys).not.toContain("load_capacity");
+  });
+
   it("returns refrigerator, camera, paper and tire specific filters", () => {
     expect(getCatalogAttributeKeysForCategory({ categoryName: "Холодильники", categorySlug: "holodilniki" })).toEqual(
       expect.arrayContaining(["fridge_no_frost", "total_volume_l", "freezer_position", "energy_class", "color"]),

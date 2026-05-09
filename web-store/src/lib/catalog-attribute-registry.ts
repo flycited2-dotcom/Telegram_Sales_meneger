@@ -14,7 +14,9 @@ export type CatalogAttributeFamily =
   | "auto"
   | "dishes"
   | "furniture"
-  | "apparel";
+  | "apparel"
+  | "appliance"
+  | "cleaning";
 
 export type CatalogAttributeDefinition = {
   key: string;
@@ -49,16 +51,21 @@ export const catalogAttributeDefinitions = [
   { key: "freezer_volume_l", label: "Объем морозильной камеры", valueType: "number", control: "range", unit: "л", families: ["refrigeration"] },
   { key: "freezer_position", label: "Расположение морозильника", valueType: "enum", control: "checkbox", families: ["refrigeration"] },
   { key: "power_source", label: "Тип питания", valueType: "enum", control: "checkbox", families: ["garden"] },
+  { key: "vacuum_type", label: "Тип пылесоса", valueType: "enum", control: "checkbox", families: ["cleaning"] },
+  { key: "dust_collector", label: "Пылесборник", valueType: "enum", control: "checkbox", families: ["cleaning"] },
+  { key: "suction_power_w", label: "Мощность всасывания", valueType: "number", control: "range", unit: "Вт", families: ["cleaning"] },
+  { key: "cleaning_type", label: "Тип уборки", valueType: "enum", control: "checkbox", families: ["cleaning"] },
+  { key: "filter_type", label: "Фильтр", valueType: "enum", control: "checkbox", families: ["cleaning"] },
   { key: "power_hp", label: "Мощность двигателя", valueType: "number", control: "range", unit: "л.с.", families: ["garden"] },
-  { key: "battery_voltage", label: "Напряжение аккумулятора", valueType: "number", control: "range", unit: "В", families: ["garden"] },
-  { key: "battery_capacity", label: "Емкость аккумулятора", valueType: "number", control: "range", unit: "Ач", families: ["garden"] },
+  { key: "battery_voltage", label: "Напряжение аккумулятора", valueType: "number", control: "range", unit: "В", families: ["garden", "cleaning", "appliance"] },
+  { key: "battery_capacity", label: "Емкость аккумулятора", valueType: "number", control: "range", unit: "Ач", families: ["garden", "cleaning", "appliance"] },
   { key: "electrical_product_type", label: "Тип электротовара", valueType: "enum", control: "checkbox", families: ["electrical"] },
   { key: "cable_section", label: "Сечение кабеля", valueType: "number", control: "range", unit: "мм²", families: ["electrical"] },
   { key: "cable_cores", label: "Количество жил", valueType: "number", control: "range", unit: "жил", families: ["electrical"] },
   { key: "cable_length", label: "Длина", valueType: "number", control: "range", unit: "м", families: ["electrical"] },
-  { key: "voltage", label: "Напряжение", valueType: "number", control: "range", unit: "В", families: ["electrical", "garden", "climate"] },
+  { key: "voltage", label: "Напряжение", valueType: "number", control: "range", unit: "В", families: ["electrical", "garden", "climate", "appliance"] },
   { key: "current_amp", label: "Ток", valueType: "number", control: "range", unit: "А", families: ["electrical"] },
-  { key: "power_w", label: "Мощность", valueType: "number", control: "range", unit: "Вт", families: ["electrical", "garden", "climate"] },
+  { key: "power_w", label: "Мощность", valueType: "number", control: "range", unit: "Вт", families: ["electrical", "garden", "climate", "appliance", "cleaning"] },
   { key: "ip_rating", label: "Степень защиты", valueType: "enum", control: "checkbox", families: ["electrical", "garden", "camera"] },
   { key: "camera_lens_mm", label: "Фокусное расстояние", valueType: "number", control: "range", unit: "мм", families: ["camera"] },
   { key: "paper_format", label: "Формат", valueType: "enum", control: "checkbox", families: ["paper"] },
@@ -69,7 +76,7 @@ export const catalogAttributeDefinitions = [
   { key: "tire_profile", label: "Профиль шины", valueType: "number", control: "range", unit: "%", families: ["auto"] },
   { key: "rim_diameter", label: "Диаметр диска", valueType: "number", control: "range", unit: "R", families: ["auto"] },
   { key: "tire_season", label: "Сезон", valueType: "enum", control: "checkbox", families: ["auto"] },
-  { key: "volume_l", label: "Объем", valueType: "number", control: "range", unit: "л", families: ["dishes", "climate", "refrigeration"] },
+  { key: "volume_l", label: "Объем", valueType: "number", control: "range", unit: "л", families: ["dishes", "climate", "refrigeration", "appliance", "cleaning"] },
   { key: "diameter_cm", label: "Диаметр", valueType: "number", control: "range", unit: "см", families: ["dishes"] },
   { key: "pieces_count", label: "Количество предметов", valueType: "number", control: "range", unit: "шт.", families: ["dishes"] },
   { key: "material", label: "Материал", valueType: "enum", control: "checkbox", families: ["dishes", "furniture", "apparel"] },
@@ -111,6 +118,8 @@ export function getCatalogAttributeFamilyForCategory({
   if (/холодильн|морозильн|holodil|morozil|refrigerator|fridge|freezer/.test(text)) return "refrigeration";
   if (/телевиз|televiz/.test(text) || /(^|[^a-zа-я0-9])tv([^a-zа-я0-9]|$)/.test(text)) return "tv";
   if (/компьютер|ноутбук|планшет|монитор|процессор|kompyut|noutbuk|planshet|laptop|computer|notebook|monitor/.test(text)) return "computer";
+  if (/пылесос|пылеудален|уборк|pylesos|pyleudal|ubork|vacuum|cleaning/.test(text)) return "cleaning";
+  if (/мелк.*техник|бытов.*техник|кухонн.*техник|melkaya.*tehnika|bytovaya.*tehnika|kuhonn.*tehnika|appliance/.test(text)) return "appliance";
   if (/кабел|провод|электр|розетк|выключател|светильник|ламп|щит|kabel|provod|elektr|rozetk|vykl|svetil|cable|wire|electric/.test(text)) return "electrical";
   if (/сад|огород|снегоубор|газон|мотоблок|триммер|культиватор|sad|ogorod|snegoub|gazon|motoblok|trimmer|kultivator|dacha|garden/.test(text)) return "garden";
   if (/кондиционер|сплит|осушител|увлажнител|очистител|климат|kondits|split|osush|uvlazhn|ochist|climat|conditioner|humidifier|dehumidifier/.test(text)) return "climate";

@@ -35,9 +35,9 @@ export default async function Home() {
           fill
           priority
           sizes="100vw"
-          className="object-cover"
+          className="pointer-events-none object-cover"
         />
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(9,9,11,0.9),rgba(9,9,11,0.68)_48%,rgba(9,9,11,0.22))]" />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(9,9,11,0.9),rgba(9,9,11,0.68)_48%,rgba(9,9,11,0.22))]" />
         <div className="relative mx-auto grid min-h-[620px] max-w-7xl items-center gap-8 px-4 pb-24 pt-16 sm:px-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:px-8">
           <div className="max-w-3xl">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-300">Симферополь, Крым, Херсонская и Запорожская области</p>

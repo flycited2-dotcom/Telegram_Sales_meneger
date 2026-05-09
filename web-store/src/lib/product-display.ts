@@ -80,6 +80,11 @@ function pushFact(facts: ProductFact[], label: string, value: string | number | 
 
 const productAttributeFactOrder = [
   "power_source",
+  "vacuum_type",
+  "dust_collector",
+  "suction_power_w",
+  "cleaning_type",
+  "filter_type",
   "power_hp",
   "battery_voltage",
   "battery_capacity",
