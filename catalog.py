@@ -481,6 +481,27 @@ def _position_word(count: int) -> str:
     return "позиций"
 
 
+def select_product_from_context(query: str, context_products: list[dict]) -> Optional[tuple[int, dict]]:
+    if not context_products:
+        return None
+
+    selection_like = is_selection_message(query) or _is_bare_position_number(query)
+    if not selection_like:
+        return None
+
+    index = _selection_index(query, len(context_products))
+    if index is None:
+        text_l = _normalize_text(query)
+        for marker, marker_index in _ORDINAL_MAP.items():
+            if re.search(rf"(^|\s){re.escape(marker)}($|\s)", text_l) and marker_index < len(context_products):
+                index = marker_index
+                break
+
+    if index is None:
+        return None
+    return index, context_products[index]
+
+
 def build_no_match_reply(query: str, had_context: bool = False, alternatives: Optional[list[dict]] = None) -> Optional[str]:
     if not has_catalog_intent(query, has_context=had_context):
         return None
@@ -508,16 +529,9 @@ def build_selection_reply(query: str, context_products: list[dict]) -> Optional[
     if not selection_like:
         return None
 
-    index = _selection_index(query, len(context_products))
-    if index is None:
-        text_l = _normalize_text(query)
-        for marker, marker_index in _ORDINAL_MAP.items():
-            if re.search(rf"(^|\s){re.escape(marker)}($|\s)", text_l) and marker_index < len(context_products):
-                index = marker_index
-                break
-
-    if index is not None:
-        product = context_products[index]
+    selected = select_product_from_context(query, context_products)
+    if selected is not None:
+        index, product = selected
         return (
             f"Зафиксировал позицию {index + 1}: {product['name']}.\n"
             "Для оформления напишите имя, телефон и количество."

@@ -21,6 +21,7 @@ from catalog import (
     resolve_catalog_product,
     search_alternatives,
     search_products,
+    select_product_from_context,
 )
 from config import (
     COMPANY_NAME,
@@ -213,7 +214,8 @@ class SalesAgent:
             chat_id,
             stage=stage,
             summary=next_step,
-            interested_product_ids=interested_ids,
+            interested_product_ids=interested_ids if matches else None,
+            last_shown_product_ids=interested_ids if matches else None,
             last_message=text[:500],
         )
 
@@ -235,10 +237,22 @@ class SalesAgent:
         history = await get_conversation_history(chat_id)
         lead = await get_lead(chat_id)
         preferred_ids = lead.get("interested_product_ids", []) if lead else []
-        context_products = get_products_by_ids(preferred_ids)
+        last_shown_ids = (lead.get("last_shown_product_ids", []) or preferred_ids) if lead else []
+        context_products = get_products_by_ids(last_shown_ids)
 
         selection_reply = build_selection_reply(text, context_products)
         if selection_reply:
+            selected = select_product_from_context(text, context_products)
+            if selected is not None:
+                _, product = selected
+                await upsert_lead(
+                    chat_id,
+                    stage="checkout",
+                    summary=f"Выбран товар {product['id']}",
+                    interested_product_ids=[product["id"]],
+                    selected_product_id=product["id"],
+                    last_message=text[:500],
+                )
             history.append({"role": "user", "content": text})
             history.append({"role": "assistant", "content": selection_reply})
             await save_conversation_history(chat_id, history, user_name)

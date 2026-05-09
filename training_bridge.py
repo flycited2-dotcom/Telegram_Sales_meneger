@@ -140,7 +140,6 @@ TRAINING_QUESTIONS: tuple[TrainingQuestion, ...] = (
     TrainingQuestion("checkout", "buy_intent", "Меня устраивает генератор за 9000", "{category: generator, price: 9000}", "confirm_product_then_checkout", "Не оформлять без точной позиции", ("checkout", "generator")),
     TrainingQuestion("complaint", "complaint", "Что ты мне шлешь", "{complaint: true}", "apologize_and_recover", "Не выдавать новый каталог", ("complaint",)),
     TrainingQuestion("complaint", "complaint", "Какой топпер, я холодильник заказываю", "{complaint: true, category: refrigerator}", "recover_context", "Не просить модель без исправления ошибки", ("complaint", "refrigerator")),
-    TrainingQuestion("greeting", "greet", "Салам", "{}", "reply_greeting", "Не звучать слишком официально и не запускать каталог", ("round2", "greeting")),
     TrainingQuestion("greeting", "greet", "Доброе утро", "{}", "reply_greeting", "Не отвечать тем же текстом, что на все приветствия", ("round2", "greeting")),
     TrainingQuestion("greeting", "greet", "Вы работаете?", "{}", "reply_greeting", "Не искать товар по слову работаете", ("round2", "greeting")),
     TrainingQuestion("greeting", "greet", "Можно консультацию?", "{}", "reply_greeting", "Не просить сразу телефон", ("round2", "greeting")),
@@ -250,14 +249,24 @@ class TrainingBridge:
 
     def start(self, chat_id: int, topic: str = "all") -> str:
         topic = (topic or "all").strip().lower()
-        question_indexes = [
+        answered_keys = self._answered_question_keys()
+        all_topic_indexes = [
             index for index, question in enumerate(self.questions)
             if topic == "all" or topic in question.topics or topic == question.block
         ]
-        if not question_indexes:
+        question_indexes = [
+            index for index in all_topic_indexes
+            if self._question_key(self.questions[index]) not in answered_keys
+        ]
+        if not all_topic_indexes:
             return (
                 f"Тему '{topic}' не нашел.\n\n"
                 + self.topics_text()
+            )
+        if not question_indexes:
+            return (
+                f"По теме '{topic}' все вопросы уже есть в CSV.\n"
+                "Запустите другую тему или добавьте новые вопросы в training_bridge.py."
             )
 
         self.sessions[chat_id] = {
@@ -266,9 +275,36 @@ class TrainingBridge:
             "question_indexes": question_indexes,
             "position": 0,
             "answered": 0,
+            "skipped_answered": len(all_topic_indexes) - len(question_indexes),
+            "topic_total": len(all_topic_indexes),
             "started_at": datetime.now().isoformat(),
         }
         return self._format_current_question(chat_id, intro=True)
+
+    def _answered_question_keys(self) -> set[tuple[str, str, str, str, str]]:
+        if not os.path.exists(self.csv_path) or os.path.getsize(self.csv_path) == 0:
+            return set()
+        keys: set[tuple[str, str, str, str, str]] = set()
+        with open(self.csv_path, encoding="utf-8", newline="") as file:
+            for row in csv.DictReader(file):
+                if row.get("good_reply", "").strip():
+                    keys.add((
+                        row.get("block", ""),
+                        row.get("intent", ""),
+                        row.get("user_phrase", ""),
+                        row.get("slots", ""),
+                        row.get("bot_action", ""),
+                    ))
+        return keys
+
+    def _question_key(self, question: TrainingQuestion) -> tuple[str, str, str, str, str]:
+        return (
+            question.block,
+            question.intent,
+            question.user_phrase,
+            question.slots,
+            question.bot_action,
+        )
 
     def stop(self, chat_id: int) -> str:
         session = self.sessions.pop(chat_id, None)
@@ -282,9 +318,12 @@ class TrainingBridge:
             return "Активной тренировки нет. Запуск: /train_start или /train_start greeting"
         total = len(session["question_indexes"])
         current = min(session["position"] + 1, total)
+        skipped_answered = session.get("skipped_answered", 0)
+        topic_total = session.get("topic_total", total)
         return (
-            f"Тренировка активна: тема {session['topic']}, вопрос {current}/{total}, "
+            f"Тренировка активна: тема {session['topic']}, непройденный вопрос {current}/{total}, "
             f"сохранено ответов: {session['answered']}.\n"
+            f"Уже были в CSV и пропущены: {skipped_answered}/{topic_total}.\n"
             "Ответьте сообщением, /train_skip пропустит вопрос, /train_stop остановит."
         )
 
@@ -330,9 +369,16 @@ class TrainingBridge:
         question = self._current_question(session)
         total = len(session["question_indexes"])
         current = session["position"] + 1
-        prefix = "Запускаю тренировку.\n\n" if intro else ""
+        prefix = ""
+        if intro:
+            skipped_answered = session.get("skipped_answered", 0)
+            topic_total = session.get("topic_total", total)
+            prefix = (
+                "Запускаю тренировку без повторов.\n"
+                f"Уже были в CSV и пропущены: {skipped_answered}/{topic_total}.\n\n"
+            )
         return (
-            f"{prefix}Вопрос {current}/{total}\n"
+            f"{prefix}Непройденный вопрос {current}/{total}\n"
             f"Блок: {question.block} / {question.intent}\n"
             f"Клиент пишет: «{question.user_phrase}»\n\n"
             "Ответьте так, как должен ответить сильный менеджер. "

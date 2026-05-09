@@ -48,6 +48,8 @@ CREATE TABLE IF NOT EXISTS leads (
     stage                  TEXT NOT NULL DEFAULT 'new',
     summary                TEXT NOT NULL DEFAULT '',
     interested_product_ids TEXT NOT NULL DEFAULT '[]',
+    last_shown_product_ids TEXT NOT NULL DEFAULT '[]',
+    selected_product_id    TEXT NOT NULL DEFAULT '',
     last_message           TEXT NOT NULL DEFAULT '',
     order_count            INTEGER NOT NULL DEFAULT 0,
     total_revenue          REAL NOT NULL DEFAULT 0,
@@ -81,8 +83,18 @@ async def init_db() -> None:
     os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
     async with aiosqlite.connect(DATABASE_PATH) as db:
         await db.executescript(_SCHEMA)
+        await _ensure_lead_columns(db)
         await db.commit()
     logger.info("Database initialized at %s", DATABASE_PATH)
+
+
+async def _ensure_lead_columns(db: aiosqlite.Connection) -> None:
+    async with db.execute("PRAGMA table_info(leads)") as cur:
+        columns = {row[1] for row in await cur.fetchall()}
+    if "last_shown_product_ids" not in columns:
+        await db.execute("ALTER TABLE leads ADD COLUMN last_shown_product_ids TEXT NOT NULL DEFAULT '[]'")
+    if "selected_product_id" not in columns:
+        await db.execute("ALTER TABLE leads ADD COLUMN selected_product_id TEXT NOT NULL DEFAULT ''")
 
 
 async def get_conversation_history(chat_id: int) -> list:
@@ -240,6 +252,7 @@ async def get_lead(chat_id: int) -> Optional[dict]:
                 return None
             lead = dict(row)
             lead["interested_product_ids"] = json.loads(lead.get("interested_product_ids", "[]"))
+            lead["last_shown_product_ids"] = json.loads(lead.get("last_shown_product_ids", "[]"))
             return lead
 
 
@@ -251,6 +264,8 @@ async def upsert_lead(
     stage: Optional[str] = None,
     summary: Optional[str] = None,
     interested_product_ids: Optional[list[str]] = None,
+    last_shown_product_ids: Optional[list[str]] = None,
+    selected_product_id: Optional[str] = None,
     last_message: Optional[str] = None,
     order_delta: int = 0,
     revenue_delta: float = 0.0,
@@ -262,6 +277,9 @@ async def upsert_lead(
     merged_products = current_products
     if interested_product_ids:
         merged_products = list(dict.fromkeys(current_products + interested_product_ids))[:12]
+    last_shown = existing.get("last_shown_product_ids", []) if existing else []
+    if last_shown_product_ids is not None:
+        last_shown = list(dict.fromkeys(last_shown_product_ids))[:12]
 
     values = {
         "chat_id": chat_id,
@@ -270,6 +288,8 @@ async def upsert_lead(
         "stage": stage or (existing.get("stage") if existing else "new"),
         "summary": summary if summary is not None else (existing.get("summary") if existing else ""),
         "interested_product_ids": json.dumps(merged_products, ensure_ascii=False),
+        "last_shown_product_ids": json.dumps(last_shown, ensure_ascii=False),
+        "selected_product_id": selected_product_id if selected_product_id is not None else (existing.get("selected_product_id", "") if existing else ""),
         "last_message": last_message if last_message is not None else (existing.get("last_message") if existing else ""),
         "order_count": (existing.get("order_count", 0) if existing else 0) + order_delta,
         "total_revenue": (existing.get("total_revenue", 0.0) if existing else 0.0) + revenue_delta,
@@ -281,15 +301,18 @@ async def upsert_lead(
             """
             INSERT INTO leads (
                 chat_id, client_name, client_contact, stage, summary,
-                interested_product_ids, last_message, order_count, total_revenue, updated_at
+                interested_product_ids, last_shown_product_ids, selected_product_id,
+                last_message, order_count, total_revenue, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(chat_id) DO UPDATE SET
                 client_name = excluded.client_name,
                 client_contact = excluded.client_contact,
                 stage = excluded.stage,
                 summary = excluded.summary,
                 interested_product_ids = excluded.interested_product_ids,
+                last_shown_product_ids = excluded.last_shown_product_ids,
+                selected_product_id = excluded.selected_product_id,
                 last_message = excluded.last_message,
                 order_count = excluded.order_count,
                 total_revenue = excluded.total_revenue,
@@ -302,6 +325,8 @@ async def upsert_lead(
                 values["stage"],
                 values["summary"],
                 values["interested_product_ids"],
+                values["last_shown_product_ids"],
+                values["selected_product_id"],
                 values["last_message"],
                 values["order_count"],
                 values["total_revenue"],
@@ -345,6 +370,7 @@ async def list_recent_leads(limit: int = 20) -> list:
             for row in rows:
                 lead = dict(row)
                 lead["interested_product_ids"] = json.loads(lead.get("interested_product_ids", "[]"))
+                lead["last_shown_product_ids"] = json.loads(lead.get("last_shown_product_ids", "[]"))
                 result.append(lead)
             return result
 
@@ -371,6 +397,7 @@ async def search_leads(query: str, limit: int = 20) -> list:
             for row in rows:
                 lead = dict(row)
                 lead["interested_product_ids"] = json.loads(lead.get("interested_product_ids", "[]"))
+                lead["last_shown_product_ids"] = json.loads(lead.get("last_shown_product_ids", "[]"))
                 result.append(lead)
             return result
 

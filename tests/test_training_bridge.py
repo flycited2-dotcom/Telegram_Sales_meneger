@@ -35,10 +35,12 @@ class TrainingBridgeTests(unittest.TestCase):
         self.assertIsNone(bridge.handle_answer(1, "Здравствуйте"))
 
     def test_start_filters_by_topic(self):
-        bridge = TrainingBridge(questions=QUESTIONS)
-        reply = bridge.start(1, topic="checkout")
+        with tempfile.TemporaryDirectory() as tmp:
+            csv_path = os.path.join(tmp, "training.csv")
+            bridge = TrainingBridge(csv_path=csv_path, questions=QUESTIONS)
+            reply = bridge.start(1, topic="checkout")
         self.assertIn("897883334455 Петя", reply)
-        self.assertIn("Вопрос 1/1", reply)
+        self.assertIn("Непройденный вопрос 1/1", reply)
 
     def test_topics_text_lists_available_topics(self):
         bridge = TrainingBridge(questions=QUESTIONS)
@@ -67,6 +69,112 @@ class TrainingBridgeTests(unittest.TestCase):
             self.assertEqual(event["chat_id"], 123)
             self.assertEqual(event["user_name"], "Алексей")
             self.assertEqual(event["block"], "greeting")
+
+    def test_start_skips_questions_already_saved_to_csv(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            csv_path = os.path.join(tmp, "training.csv")
+            with open(csv_path, "w", encoding="utf-8", newline="") as file:
+                writer = csv.DictWriter(
+                    file,
+                    fieldnames=[
+                        "block",
+                        "intent",
+                        "user_phrase",
+                        "slots",
+                        "bot_action",
+                        "good_reply",
+                        "bad_reply_guard",
+                    ],
+                )
+                writer.writeheader()
+                writer.writerow(
+                    {
+                        "block": "greeting",
+                        "intent": "greet",
+                        "user_phrase": "Привет",
+                        "slots": "{}",
+                        "bot_action": "reply_greeting",
+                        "good_reply": "Здравствуйте",
+                        "bad_reply_guard": "Не предлагать случайный товар",
+                    }
+                )
+
+            bridge = TrainingBridge(csv_path=csv_path, questions=QUESTIONS)
+            reply = bridge.start(1, topic="all")
+
+            self.assertIn("897883334455 Петя", reply)
+            self.assertIn("Непройденный вопрос 1/1", reply)
+            self.assertIn("Уже были в CSV и пропущены: 1/2", reply)
+
+    def test_start_reports_when_topic_is_already_complete(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            csv_path = os.path.join(tmp, "training.csv")
+            with open(csv_path, "w", encoding="utf-8", newline="") as file:
+                writer = csv.DictWriter(
+                    file,
+                    fieldnames=[
+                        "block",
+                        "intent",
+                        "user_phrase",
+                        "slots",
+                        "bot_action",
+                        "good_reply",
+                        "bad_reply_guard",
+                    ],
+                )
+                writer.writeheader()
+                writer.writerow(
+                    {
+                        "block": "greeting",
+                        "intent": "greet",
+                        "user_phrase": "Привет",
+                        "slots": "{}",
+                        "bot_action": "reply_greeting",
+                        "good_reply": "Здравствуйте",
+                        "bad_reply_guard": "Не предлагать случайный товар",
+                    }
+                )
+
+            bridge = TrainingBridge(csv_path=csv_path, questions=QUESTIONS)
+            reply = bridge.start(1, topic="greeting")
+
+            self.assertIn("все вопросы уже есть в CSV", reply)
+
+    def test_status_reports_saved_questions_skipped_from_csv(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            csv_path = os.path.join(tmp, "training.csv")
+            with open(csv_path, "w", encoding="utf-8", newline="") as file:
+                writer = csv.DictWriter(
+                    file,
+                    fieldnames=[
+                        "block",
+                        "intent",
+                        "user_phrase",
+                        "slots",
+                        "bot_action",
+                        "good_reply",
+                        "bad_reply_guard",
+                    ],
+                )
+                writer.writeheader()
+                writer.writerow(
+                    {
+                        "block": "greeting",
+                        "intent": "greet",
+                        "user_phrase": "Привет",
+                        "slots": "{}",
+                        "bot_action": "reply_greeting",
+                        "good_reply": "Здравствуйте",
+                        "bad_reply_guard": "Не предлагать случайный товар",
+                    }
+                )
+
+            bridge = TrainingBridge(csv_path=csv_path, questions=QUESTIONS)
+            bridge.start(1, topic="all")
+            reply = bridge.status(1)
+
+            self.assertIn("непройденный вопрос 1/1", reply)
+            self.assertIn("Уже были в CSV и пропущены: 1/2", reply)
 
 
 if __name__ == "__main__":

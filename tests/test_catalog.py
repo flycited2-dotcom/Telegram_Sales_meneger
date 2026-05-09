@@ -9,6 +9,7 @@ from catalog import (
     resolve_catalog_product,
     search_alternatives,
     search_products,
+    select_product_from_context,
 )
 
 
@@ -229,6 +230,17 @@ class CatalogTests(unittest.TestCase):
     def test_selection_reply_uses_context_products(self):
         reply = build_selection_reply("беру первый", CATALOG_FIXTURE[:2])
         self.assertIn("Dahatsu Кондиционер 12 ONYX", reply)
+
+    def test_select_product_from_context_returns_selected_product(self):
+        selected = select_product_from_context("беру второй", CATALOG_FIXTURE[:3])
+        self.assertIsNotNone(selected)
+        index, product = selected
+        self.assertEqual(index, 1)
+        self.assertEqual(product["id"], "AC-09")
+
+    def test_select_product_from_context_rejects_quantity(self):
+        selected = select_product_from_context("1 шт", CATALOG_FIXTURE[:3])
+        self.assertIsNone(selected)
 
 
 if __name__ == "__main__":
