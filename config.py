@@ -12,6 +12,7 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 # Fallback model: 500K tokens/day free — used when primary hits rate limit
 GROQ_MODEL_FALLBACK = os.getenv("GROQ_MODEL_FALLBACK", "llama-3.1-8b-instant")
+GROQ_PROXY_URL = os.getenv("GROQ_PROXY_URL", "").strip()
 
 # Supplier notification channels
 SUPPLIER_TELEGRAM_CHAT_ID = os.getenv("SUPPLIER_TELEGRAM_CHAT_ID", "")

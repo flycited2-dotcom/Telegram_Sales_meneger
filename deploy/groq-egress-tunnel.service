@@ -1,0 +1,27 @@
+[Unit]
+Description=Restricted SOCKS tunnel for Groq API egress
+Wants=network-online.target
+After=network-online.target
+Before=sales_bot.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ssh -NT -D 127.0.0.1:11080 \
+    -i /root/.ssh/groq_egress_ed25519 \
+    -o IdentitiesOnly=yes \
+    -o BatchMode=yes \
+    -o StrictHostKeyChecking=yes \
+    -o UserKnownHostsFile=/root/.ssh/known_hosts \
+    -o ExitOnForwardFailure=yes \
+    -o ServerAliveInterval=10 \
+    -o ServerAliveCountMax=3 \
+    -o ConnectTimeout=15 \
+    groq-egress@186.246.44.204
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

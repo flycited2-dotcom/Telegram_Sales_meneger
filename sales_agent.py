@@ -15,6 +15,7 @@ import logging
 import re
 from typing import Optional
 
+import httpx
 from groq import AsyncGroq
 
 from config import (
@@ -22,6 +23,7 @@ from config import (
     GROQ_API_KEY,
     GROQ_MODEL,
     GROQ_MODEL_FALLBACK,
+    GROQ_PROXY_URL,
     MANAGER_NAME,
     MAX_HISTORY_MESSAGES,
     SMTP_HOST,
@@ -351,11 +353,19 @@ _TOOLS = [
 # ─── Agent ────────────────────────────────────────────────────────────────────
 
 
+def _create_groq_client(api_key: str, proxy_url: str) -> AsyncGroq:
+    if not proxy_url:
+        return AsyncGroq(api_key=api_key)
+
+    http_client = httpx.AsyncClient(proxy=proxy_url)
+    return AsyncGroq(api_key=api_key, http_client=http_client)
+
+
 class SalesAgent:
     """RAG-first sales agent. Products come from catalog, not from LLM memory."""
 
     def __init__(self) -> None:
-        self._client = AsyncGroq(api_key=GROQ_API_KEY)
+        self._client = _create_groq_client(GROQ_API_KEY, GROQ_PROXY_URL)
         self._bot = None
         self._active_model = GROQ_MODEL
         self._system = _SYSTEM_PROMPT.format(
