@@ -1,4 +1,6 @@
 .env
+.env.*
+!.env.example
 data/sales.db
 __pycache__/
 *.pyc

@@ -32,10 +32,11 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 MANAGER_NAME = os.getenv("MANAGER_NAME", "Алексей")
 COMPANY_NAME = os.getenv("COMPANY_NAME", "ТехноТрейд")
 
-# Paths (relative to project root)
+# Runtime state can live outside an immutable release directory.
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATABASE_PATH = os.path.join(BASE_DIR, "data", "sales.db")
-PRODUCTS_FILE = os.path.join(BASE_DIR, "data", "products.json")
+SALES_DATA_DIR = os.getenv("SALES_DATA_DIR", os.path.join(BASE_DIR, "data"))
+DATABASE_PATH = os.path.join(SALES_DATA_DIR, "sales.db")
+PRODUCTS_FILE = os.path.join(SALES_DATA_DIR, "products.json")
 
 # Conversation history
 MAX_HISTORY_MESSAGES = 8       # messages sent to LLM (balance: quality vs tokens)

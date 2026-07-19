@@ -1,3 +1,4 @@
+import logging
 import unittest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -42,6 +43,11 @@ class HandleMessageTests(unittest.IsolatedAsyncioTestCase):
         )
         update.message.reply_text.assert_awaited_once_with("test reply")
         self.assertIn("Could not send typing indicator", "\n".join(logs.output))
+
+
+class LoggingConfigurationTests(unittest.TestCase):
+    def test_httpx_info_logs_are_disabled_to_protect_bot_credentials(self):
+        self.assertGreaterEqual(logging.getLogger("httpx").level, logging.WARNING)
 
 
 if __name__ == "__main__":
