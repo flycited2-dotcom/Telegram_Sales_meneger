@@ -17,6 +17,7 @@ import logging
 
 from telegram import Update
 from telegram.constants import ChatAction
+from telegram.error import TelegramError
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -130,8 +131,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_supplier(update, context, text)
         return
 
-    # Show typing indicator while Claude thinks
-    await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
+    # Typing status is cosmetic and must not block the actual reply.
+    try:
+        await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
+    except TelegramError as exc:
+        logger.warning("Could not send typing indicator for chat_id=%s: %s", chat_id, exc)
 
     try:
         reply = await agent.process_message(
